@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "Task": {
+      "title": "Task",
+      "description": "User executive tasks tracked in the ledger",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user ID" },
+        "tarea": { "type": "string", "maxLength": 1000, "description": "Task description" },
+        "estado": { "type": "string", "enum": ["Pendiente", "En Proceso", "Completada"], "description": "Task status" },
+        "fechaIngreso": { "type": "string", "maxLength": 30, "description": "Creation date YYYY-MM-DD" },
+        "fechaLimite": { "type": "string", "maxLength": 30, "description": "Due date YYYY-MM-DD" },
+        "dominio": { "type": "string", "maxLength": 100, "description": "Task domain or category" },
+        "etiquetas": { "type": "array", "description": "Tag labels assigned" },
+        "notas": { "type": "string", "maxLength": 5000, "description": "Notes or action items" },
+        "solicitante": { "type": "string", "maxLength": 150, "description": "Requester contact name" },
+        "telefono": { "type": "string", "maxLength": 50, "description": "Requester phone number" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Created at timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Updated at timestamp" }
+      },
+      "required": ["userId", "tarea", "estado", "fechaIngreso"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User settings and metadata",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "User ID" },
+        "email": { "type": "string", "maxLength": 200, "description": "User email address" },
+        "displayName": { "type": "string", "maxLength": 100, "description": "User display name" },
+        "esencialTaskId": { "type": "number", "description": "Priority Essential task ID" },
+        "secundariasTaskIds": { "type": "array", "description": "Secondary priority task IDs" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Updated timestamp" }
+      },
+      "required": ["userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Collection of tasks owned by a user"
+    },
+    "/users/{userId}/profile/info": {
+      "schema": "UserProfile",
+      "description": "User profile and configuration"
+    }
+  }
+}
