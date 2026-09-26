@@ -28,6 +28,12 @@ export interface TagItem {
   color: string; // "rose" | "amber" | "blue" | "purple" | "cyan" | "emerald" | "orange" | "violet" | "stone"
 }
 
+export interface TaskResource {
+  url: string;
+  title: string;
+  addedAt: string;
+}
+
 export interface TaskItem {
   id: number;
   solicitante: string;
@@ -43,6 +49,89 @@ export interface TaskItem {
   etiquetas?: string[]; // Array of tag names or IDs
   notas?: string; // Sub-notas u observaciones persistentes de la tarea
   fechaLimite?: string; // YYYY-MM-DD fecha límite / deadline de entrega
+  resources?: TaskResource[]; // Contextual links/resources attached to this task (Ley del Foco)
+}
+
+export interface GlobalResource {
+  id: string;
+  url: string;
+  title: string;
+  keywords: string[];
+  savedAt: string;
+}
+
+export interface UrlLibraryItem {
+  id: string;
+  url: string;
+  title: string;
+  categoria?: string;
+  descripcion?: string;
+  keywords?: string[];
+  icon?: string;
+  isFavorite?: boolean;
+  clicks?: number;
+  lastOpenedAt?: string;
+  isDesignFile?: boolean; // Indica si es el archivo de diseño creado en Google Drive
+  driveUrl?: string; // Link directo a Google Drive
+  relatedOrderId?: string; // ID del pedido de Lonas vinculado (ej. lon-008)
+  relatedOrderFolio?: number; // Folio de lona vinculado (ej. 8 para L-008)
+  clienteNombre?: string;
+  empresaZona?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type UrlViewMode = "grid" | "list" | "categories" | "daily";
+
+export type RouterAction = "ROUTE_RESOURCE" | "CREATE_TASK" | "UNIVERSAL_SEARCH" | "SAVE_URL_LIBRARY";
+
+export interface RouterDestination {
+  type: "TASK" | "GLOBAL" | "URL_LIBRARY" | null;
+  taskId: string | null;
+}
+
+export interface RouterPayload {
+  url?: string;
+  urls?: string[];
+  title?: string;
+  keywords?: string[];
+  categoria?: string;
+  descripcion?: string;
+  taskText?: string;
+  searchQuery?: string;
+}
+
+export interface RouterStructuredOutput {
+  action: RouterAction;
+  payload: RouterPayload;
+  destination: RouterDestination;
+  system_log: string;
+  timestamp?: string;
+}
+
+export interface UniversalSearchResult {
+  id: string;
+  title: string;
+  url?: string;
+  source: string; // e.g. "Tarea: Revisar reconocimientos" or "Archivo global" or "Biblioteca URLs"
+  sourceType: "task_title" | "task_resource" | "global_resource" | "url_library";
+  taskId?: number;
+  taskTitle?: string;
+  keywords?: string[];
+  categoria?: string;
+  matchType: "title" | "keyword" | "content";
+  addedAt?: string;
+}
+
+export interface TaskOSExportData {
+  version: number;
+  exportedAt: string;
+  tasks: TaskItem[];
+  globalResources: GlobalResource[];
+  urlLibrary?: UrlLibraryItem[];
+  contacts?: Contact[];
+  tags?: TagItem[];
+  esencialTaskId?: number | null;
 }
 
 export interface TaskOSResponse {
@@ -75,6 +164,47 @@ export type DomainType =
   | "Lonas"
   | "Finanzas";
 
+export type WorkspaceTab = "task-os" | "lonas" | "finanzas" | "urls" | "print" | "pomodoro";
+
+/* =========================================================
+   PRINT STATION & VOUCHER TYPES (🖨️ Comprobantes, Tickets y Recibos)
+========================================================= */
+export type PrintDocType =
+  | "ticket_lona"
+  | "comprobante_pago"
+  | "reporte_tarea"
+  | "estado_cuenta"
+  | "recibo_general";
+
+export interface PrintItem {
+  id: string;
+  tipo: PrintDocType;
+  folio?: string;
+  titulo: string;
+  clienteNombre: string;
+  clienteTelefono?: string;
+  clienteEmail?: string;
+  empresaZona?: string;
+  fecha: string;
+  fechaEntrega?: string;
+  items?: Array<{
+    descripcion: string;
+    detalle?: string;
+    cantidad?: number;
+    subtotal?: number;
+  }>;
+  total: number;
+  anticipo?: number;
+  saldo?: number;
+  metodoPago?: string;
+  estado?: string;
+  notas?: string;
+  origen?: "lonas" | "finanzas" | "task-os" | "out" | "manual";
+  referenciaId?: string;
+  driveUrl?: string; // Link de Google Drive con el archivo del diseño creado
+  createdAt: string;
+}
+
 export type StatusFilter = "Todos" | "Pendiente" | "En Proceso" | "Completado" | "Activas";
 
 export interface SyncStatus {
@@ -89,6 +219,8 @@ export interface SyncStatus {
 export interface CloudSyncPayload {
   email: string;
   tasks: TaskItem[];
+  globalResources?: GlobalResource[];
+  urlLibrary?: UrlLibraryItem[];
   contacts?: Contact[];
   tags?: TagItem[];
   esencialTaskId?: number | null;
@@ -98,9 +230,9 @@ export interface CloudSyncPayload {
 }
 
 /* =========================================================
-   MUSIC & PLAYLIST PLAYER TYPES (Spotify, YouTube Music, Google Drive)
+   MUSIC & PLAYLIST PLAYER TYPES (Spotify, YouTube Music, Google Drive, Local Folder)
 ========================================================= */
-export type MusicPlatform = "spotify" | "youtube" | "gdrive";
+export type MusicPlatform = "spotify" | "youtube" | "gdrive" | "local";
 
 export interface WorkPlaylist {
   id: string;
@@ -169,6 +301,7 @@ export interface LonasOrder {
   fechaIngreso: string;
   fechaEntregaEstimada: string;
   comprobanteUrl?: string;
+  driveUrl?: string; // Link de Google Drive donde está el archivo del diseño creado
   notasInternas?: string;
   notasCliente?: string;
   entregadoAt?: string;

@@ -28,7 +28,7 @@ service cloud.firestore {
 
     function isValidTask(data) {
       return data.keys().hasAll(['userId', 'tarea', 'estado', 'fechaIngreso']) &&
-             data.keys().hasOnly(['userId', 'tarea', 'estado', 'fechaIngreso', 'fechaLimite', 'dominio', 'etiquetas', 'notas', 'solicitante', 'telefono', 'contacto', 'id', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['userId', 'tarea', 'estado', 'fechaIngreso', 'fechaLimite', 'dominio', 'etiquetas', 'notas', 'solicitante', 'telefono', 'contacto', 'id', 'resources', 'createdAt', 'updatedAt']) &&
              data.userId is string && data.userId == request.auth.uid &&
              data.tarea is string && data.tarea.size() > 0 && data.tarea.size() <= 1000 &&
              data.estado is string && data.estado in ['Pendiente', 'En Proceso', 'Completada'] &&
@@ -38,7 +38,35 @@ service cloud.firestore {
              (!('notas' in data) || (data.notas is string && data.notas.size() <= 5000)) &&
              (!('solicitante' in data) || (data.solicitante is string && data.solicitante.size() <= 150)) &&
              (!('telefono' in data) || (data.telefono is string && data.telefono.size() <= 50)) &&
+             (!('resources' in data) || (data.resources is list && data.resources.size() <= 50)) &&
              (!('etiquetas' in data) || (data.etiquetas is list && data.etiquetas.size() <= 20));
+    }
+
+    function isValidGlobalResource(data) {
+      return data.keys().hasAll(['userId', 'url', 'title', 'keywords', 'savedAt']) &&
+             data.keys().hasOnly(['userId', 'url', 'title', 'keywords', 'savedAt', 'createdAt', 'updatedAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.url is string && data.url.size() > 0 && data.url.size() <= 1000 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 300 &&
+             data.keywords is list && data.keywords.size() <= 10 &&
+             data.savedAt is string && data.savedAt.size() <= 50;
+    }
+
+    function isValidUrlLibraryItem(data) {
+      return data.keys().hasAll(['userId', 'url', 'title', 'createdAt']) &&
+             data.keys().hasOnly(['userId', 'url', 'title', 'categoria', 'descripcion', 'keywords', 'icon', 'isFavorite', 'clicks', 'createdAt', 'updatedAt', 'lastOpenedAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.url is string && data.url.size() > 0 && data.url.size() <= 1000 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 300 &&
+             data.createdAt is string && data.createdAt.size() <= 50 &&
+             (!('categoria' in data) || (data.categoria is string && data.categoria.size() <= 100)) &&
+             (!('descripcion' in data) || (data.descripcion is string && data.descripcion.size() <= 1000)) &&
+             (!('icon' in data) || (data.icon is string && data.icon.size() <= 1000)) &&
+             (!('isFavorite' in data) || (data.isFavorite is bool)) &&
+             (!('clicks' in data) || (data.clicks is number)) &&
+             (!('keywords' in data) || (data.keywords is list && data.keywords.size() <= 20)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 50)) &&
+             (!('lastOpenedAt' in data) || (data.lastOpenedAt is string && data.lastOpenedAt.size() <= 50));
     }
 
     function isValidProfile(data) {
@@ -64,6 +92,20 @@ service cloud.firestore {
         allow create: if isOwner(userId) && isValidId(userId) && isValidId(taskId) && isValidTask(incoming());
         allow update: if isOwner(userId) && isValidId(userId) && isValidId(taskId) && isValidTask(incoming()) && incoming().userId == existing().userId;
         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(taskId);
+      }
+
+      match /global_resources/{resourceId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(resourceId) && isValidGlobalResource(incoming());
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(resourceId) && isValidGlobalResource(incoming()) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(resourceId);
+      }
+
+      match /url_library/{urlId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(urlId) && isValidUrlLibraryItem(incoming());
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(urlId) && isValidUrlLibraryItem(incoming()) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(urlId);
       }
     }
   }

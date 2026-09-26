@@ -16,14 +16,36 @@ function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
-export function playChime(type: "work_done" | "break_done" | "tick" | "success") {
+export function playChime(type: "work_done" | "break_done" | "tick" | "success" | "notification") {
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
 
     const now = ctx.currentTime;
 
-    if (type === "work_done") {
+    if (type === "notification") {
+      // Modern phone bell chime: G5 -> C6 high double ping
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(783.99, now); // G5
+      osc2.type = "triangle";
+      osc2.frequency.setValueAtTime(1046.50, now + 0.08); // C6
+
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now + 0.08);
+      osc1.stop(now + 0.6);
+      osc2.stop(now + 0.6);
+    } else if (type === "work_done") {
       // Pleasant dual chime (F#5 to A#5)
       const osc1 = ctx.createOscillator();
       const osc2 = ctx.createOscillator();

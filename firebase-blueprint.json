@@ -15,10 +15,44 @@
         "notas": { "type": "string", "maxLength": 5000, "description": "Notes or action items" },
         "solicitante": { "type": "string", "maxLength": 150, "description": "Requester contact name" },
         "telefono": { "type": "string", "maxLength": 50, "description": "Requester phone number" },
+        "resources": { "type": "array", "description": "Contextual links and resources attached to this task" },
         "createdAt": { "type": "string", "format": "date-time", "description": "Created at timestamp" },
         "updatedAt": { "type": "string", "format": "date-time", "description": "Updated at timestamp" }
       },
       "required": ["userId", "tarea", "estado", "fechaIngreso"]
+    },
+    "GlobalResource": {
+      "title": "GlobalResource",
+      "description": "Isolated URL resource saved without active task context, indexed for Universal Search",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user ID" },
+        "url": { "type": "string", "maxLength": 1000, "description": "Web resource URL" },
+        "title": { "type": "string", "maxLength": 300, "description": "Extracted or inferred title" },
+        "keywords": { "type": "array", "description": "3-5 indexing keywords for universal search" },
+        "savedAt": { "type": "string", "maxLength": 50, "description": "ISO timestamp when saved" }
+      },
+      "required": ["userId", "url", "title", "keywords", "savedAt"]
+    },
+    "UrlLibraryItem": {
+      "title": "UrlLibraryItem",
+      "description": "Daily bookmarks and useful web links library with auto-identified metadata and multiple views",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user ID" },
+        "url": { "type": "string", "maxLength": 1000, "description": "Web resource URL" },
+        "title": { "type": "string", "maxLength": 300, "description": "Auto-identified or customized title" },
+        "categoria": { "type": "string", "maxLength": 100, "description": "Category or domain" },
+        "descripcion": { "type": "string", "maxLength": 1000, "description": "Short description or notes" },
+        "keywords": { "type": "array", "description": "Tags or keywords for filtering" },
+        "icon": { "type": "string", "maxLength": 1000, "description": "Favicon or icon URL" },
+        "isFavorite": { "type": "boolean", "description": "Marked as daily essential / favorite" },
+        "clicks": { "type": "number", "description": "Times opened" },
+        "createdAt": { "type": "string", "maxLength": 50, "description": "Creation ISO date" },
+        "updatedAt": { "type": "string", "maxLength": 50, "description": "Last update ISO date" },
+        "lastOpenedAt": { "type": "string", "maxLength": 50, "description": "Last opened ISO date" }
+      },
+      "required": ["userId", "url", "title", "createdAt"]
     },
     "UserProfile": {
       "title": "UserProfile",
@@ -39,6 +73,14 @@
     "/users/{userId}/tasks/{taskId}": {
       "schema": "Task",
       "description": "Collection of tasks owned by a user"
+    },
+    "/users/{userId}/global_resources/{resourceId}": {
+      "schema": "GlobalResource",
+      "description": "Collection of global indexed resources accessible only via Universal Search"
+    },
+    "/users/{userId}/url_library/{urlId}": {
+      "schema": "UrlLibraryItem",
+      "description": "Collection of daily URLs and tools saved by user"
     },
     "/users/{userId}/profile/info": {
       "schema": "UserProfile",

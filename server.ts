@@ -1,4 +1,6 @@
-import express, { Request, Response } from "express";
+import express from "express";
+import type { Request, Response } from "express";
+import http from "http";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
@@ -8,7 +10,11 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const httpServer = http.createServer(app);
+const args = process.argv.slice(2);
+const portIndex = args.indexOf("--port");
+const portArg = portIndex !== -1 && args[portIndex + 1] ? parseInt(args[portIndex + 1], 10) : null;
+const PORT = portArg || (process.env.PORT ? parseInt(process.env.PORT, 10) : 3000);
 
 app.use(express.json({ limit: "25mb" }));
 
@@ -19,6 +25,8 @@ const SYNC_FILE = path.join(DATA_DIR, "cloud_sync.json");
 interface CloudSyncRecord {
   email: string;
   tasks: TaskItem[];
+  globalResources?: any[];
+  urlLibrary?: any[];
   contacts?: Contact[];
   tags?: any[];
   esencialTaskId?: number | null;
@@ -163,6 +171,8 @@ app.post("/api/sync/push", (req: Request, res: Response) => {
     const {
       email,
       tasks = [],
+      globalResources = [],
+      urlLibrary = [],
       contacts,
       tags,
       esencialTaskId,
@@ -181,6 +191,8 @@ app.post("/api/sync/push", (req: Request, res: Response) => {
     const record: CloudSyncRecord = {
       email: cleanEmail,
       tasks: Array.isArray(tasks) ? tasks : [],
+      globalResources: Array.isArray(globalResources) ? globalResources : undefined,
+      urlLibrary: Array.isArray(urlLibrary) ? urlLibrary : undefined,
       contacts: Array.isArray(contacts) ? contacts : undefined,
       tags: Array.isArray(tags) ? tags : undefined,
       esencialTaskId: typeof esencialTaskId === "number" ? esencialTaskId : null,
@@ -346,6 +358,175 @@ app.post("/api/sync/ecosystem", (req: Request, res: Response) => {
   }
 });
 
+// ==========================================
+// FCM Push Notifications & Device Token API
+// ==========================================
+const FCM_TOKENS_FILE = path.join(DATA_DIR, "fcm_tokens.json");
+const NOTIFICATIONS_HISTORY_FILE = path.join(DATA_DIR, "notifications_history.json");
+
+interface FCMTokenRecord {
+  token: string;
+  email: string;
+  device?: string;
+  userAgent?: string;
+  updatedAt: string;
+}
+
+interface NotificationHistoryRecord {
+  id: string;
+  title: string;
+  body: string;
+  icon?: string;
+  tag?: string;
+  url?: string;
+  email?: string;
+  token?: string;
+  type: string;
+  data?: any;
+  timestamp: string;
+  delivered: boolean;
+}
+
+function getFCMTokens(): Record<string, FCMTokenRecord[]> {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(FCM_TOKENS_FILE)) {
+      fs.writeFileSync(FCM_TOKENS_FILE, JSON.stringify({}), "utf8");
+      return {};
+    }
+    const data = fs.readFileSync(FCM_TOKENS_FILE, "utf8");
+    return JSON.parse(data || "{}");
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveFCMTokens(tokens: Record<string, FCMTokenRecord[]>) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(FCM_TOKENS_FILE, JSON.stringify(tokens, null, 2), "utf8");
+  } catch (_) {}
+}
+
+function getNotificationsHistory(): NotificationHistoryRecord[] {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(NOTIFICATIONS_HISTORY_FILE)) {
+      fs.writeFileSync(NOTIFICATIONS_HISTORY_FILE, JSON.stringify([]), "utf8");
+      return [];
+    }
+    const data = fs.readFileSync(NOTIFICATIONS_HISTORY_FILE, "utf8");
+    return JSON.parse(data || "[]");
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveNotificationsHistory(history: NotificationHistoryRecord[]) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(NOTIFICATIONS_HISTORY_FILE, JSON.stringify(history.slice(0, 100), null, 2), "utf8");
+  } catch (_) {}
+}
+
+// 1. Register device FCM token
+app.post("/api/notifications/register-token", (req: Request, res: Response) => {
+  try {
+    const { token, email = "laurcortazar@gmail.com", device, userAgent } = req.body;
+    if (!token) return res.status(400).json({ error: "Token is required" });
+
+    const cleanEmail = email.trim().toLowerCase();
+    const store = getFCMTokens();
+    const userTokens = store[cleanEmail] || [];
+
+    const existingIdx = userTokens.findIndex((t) => t.token === token);
+    const now = new Date().toISOString();
+    if (existingIdx >= 0) {
+      userTokens[existingIdx].updatedAt = now;
+      if (device) userTokens[existingIdx].device = device;
+    } else {
+      userTokens.push({
+        token,
+        email: cleanEmail,
+        device: device || (/Mobi|Android/i.test(userAgent || "") ? "mobile" : "desktop"),
+        userAgent,
+        updatedAt: now,
+      });
+    }
+
+    store[cleanEmail] = userTokens;
+    saveFCMTokens(store);
+
+    return res.json({ success: true, count: userTokens.length });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Send push notification event
+app.post("/api/notifications/send", (req: Request, res: Response) => {
+  try {
+    const { title, body, icon, tag, url, data = {}, token, email = "laurcortazar@gmail.com" } = req.body;
+    if (!title || !body) return res.status(400).json({ error: "Title and body are required" });
+
+    const notifRecord: NotificationHistoryRecord = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title,
+      body,
+      icon: icon || "/icon-192.svg",
+      tag: tag || "task-os-push",
+      url: url || "/",
+      email: email.trim().toLowerCase(),
+      token,
+      type: tag?.includes("task") ? "task_completed" : tag?.includes("client") ? "client_message" : "general",
+      data,
+      timestamp: new Date().toISOString(),
+      delivered: true,
+    };
+
+    const history = getNotificationsHistory();
+    history.unshift(notifRecord);
+    saveNotificationsHistory(history);
+
+    console.log(`[Push Notification Registrada/Enviada] ${title} -> ${body}`);
+
+    return res.json({
+      success: true,
+      notification: notifRecord,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Get notification history
+app.get("/api/notifications/history", (req: Request, res: Response) => {
+  try {
+    const email = req.query.email ? String(req.query.email).trim().toLowerCase() : null;
+    const history = getNotificationsHistory();
+    const filtered = email ? history.filter((h) => !h.email || h.email === email) : history;
+    return res.json({ success: true, notifications: filtered.slice(0, 30) });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. Get active registered device tokens status
+app.get("/api/notifications/status", (req: Request, res: Response) => {
+  try {
+    const email = (req.query.email ? String(req.query.email) : "laurcortazar@gmail.com").trim().toLowerCase();
+    const store = getFCMTokens();
+    const userTokens = store[email] || [];
+    return res.json({
+      success: true,
+      registeredDevices: userTokens.length,
+      devices: userTokens.map((t) => ({ device: t.device, updatedAt: t.updatedAt })),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/sync/email-summary", (req: Request, res: Response) => {
   try {
     const { email, tasks = [], esencialTaskId, secundariasTaskIds = [] } = req.body;
@@ -409,6 +590,156 @@ app.post("/api/sync/email-summary", (req: Request, res: Response) => {
   } catch (err: any) {
     console.error("Error generating email summary:", err);
     return res.status(500).json({ error: err.message || "Failed to generate summary" });
+  }
+});
+
+// Executive Router: URL Metadata extraction & 3-5 indexing keywords generation
+app.post("/api/router/extract-metadata", async (req: Request, res: Response) => {
+  try {
+    const { url } = req.body;
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({ error: "URL string is required" });
+    }
+
+    const cleanUrl = url.trim();
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(cleanUrl);
+    } catch {
+      return res.status(400).json({ error: "Invalid URL provided" });
+    }
+
+    let extractedTitle = "";
+    let extractedDescription = "";
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const response = await fetch(cleanUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const html = await response.text();
+        const ogTitleMatch = html.match(/<meta\s+[^>]*property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
+                             html.match(/<meta\s+[^>]*content=["']([^"']+)["']\s+property=["']og:title["']/i);
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        const ogDescMatch = html.match(/<meta\s+[^>]*property=["']og:description["']\s+content=["']([^"']+)["']/i) ||
+                            html.match(/<meta\s+[^>]*name=["']description["']\s+content=["']([^"']+)["']/i);
+
+        if (ogTitleMatch && ogTitleMatch[1]) {
+          extractedTitle = ogTitleMatch[1].trim();
+        } else if (titleMatch && titleMatch[1]) {
+          extractedTitle = titleMatch[1].trim();
+        }
+
+        if (ogDescMatch && ogDescMatch[1]) {
+          extractedDescription = ogDescMatch[1].trim();
+        }
+      }
+    } catch (fetchErr) {
+      // Graceful fallback if fetch blocked or timeout
+      console.warn("Server-side URL metadata fetch skipped:", fetchErr);
+    }
+
+    // If title not found via HTML fetch, infer from hostname and path
+    if (!extractedTitle) {
+      const hostname = parsedUrl.hostname.replace(/^www\./, "");
+      const pathname = parsedUrl.pathname.replace(/[-_/]/g, " ").trim();
+      extractedTitle = pathname ? `${hostname} • ${pathname}` : hostname;
+    }
+
+    // Generate 3 to 5 indexing keywords
+    let keywords: string[] = [];
+    const ai = getGenAI();
+    if (ai) {
+      try {
+        const prompt = `Analiza este recurso web y genera exactamente entre 3 y 5 palabras clave (keywords) en español o inglés para el índice de Búsqueda Universal.
+URL: ${cleanUrl}
+Título: ${extractedTitle}
+Descripción: ${extractedDescription}
+Devuelve ÚNICAMENTE un array JSON de 3 a 5 strings cortos y limpios en minúsculas. Ejemplo: ["diseño", "impresión", "lonas", "proveedor"]`;
+        const resAi = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: prompt,
+        });
+        const text = resAi.text?.trim() || "";
+        const jsonMatch = text.match(/\[.*\]/s);
+        if (jsonMatch) {
+          const parsedKw = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsedKw) && parsedKw.length >= 3) {
+            keywords = parsedKw.slice(0, 5).map((k: any) => String(k).trim().toLowerCase());
+          }
+        }
+      } catch (aiErr) {
+        console.warn("AI keyword extraction failed, using heuristic:", aiErr);
+      }
+    }
+
+    // Heuristic keyword generation fallback
+    if (keywords.length < 3) {
+      const stopWords = new Set([
+        "de", "la", "el", "los", "las", "un", "una", "unos", "unas", "y", "o", "a", "en", "para", "por", "con", "sin",
+        "the", "and", "or", "of", "to", "in", "for", "with", "on", "at", "by", "from", "com", "org", "net", "http", "https"
+      ]);
+      const hostParts = parsedUrl.hostname.split(".").filter((p) => p.length > 2 && !stopWords.has(p));
+      const textWords = `${extractedTitle} ${extractedDescription} ${parsedUrl.pathname}`
+        .toLowerCase()
+        .replace(/[^a-záéíóúñ0-9\s]/gi, " ")
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !stopWords.has(w));
+
+      const wordCounts = new Map<string, number>();
+      [...hostParts, ...textWords].forEach((w) => {
+        wordCounts.set(w, (wordCounts.get(w) || 0) + 1);
+      });
+
+      keywords = Array.from(wordCounts.keys())
+        .sort((a, b) => (wordCounts.get(b) || 0) - (wordCounts.get(a) || 0))
+        .slice(0, 5);
+
+      if (keywords.length < 3) {
+        keywords.push("enlace", "recurso", "web");
+      }
+    }
+
+    // Infer category deterministically
+    const combinedContent = `${parsedUrl.hostname} ${extractedTitle} ${extractedDescription} ${keywords.join(" ")}`.toLowerCase();
+    let categoria = "Herramientas & Web";
+    if (combinedContent.includes("suno") || combinedContent.includes("music") || combinedContent.includes("música") || combinedContent.includes("spotify") || combinedContent.includes("audio") || combinedContent.includes("cancion") || combinedContent.includes("canción") || combinedContent.includes("sound") || combinedContent.includes("podcast")) {
+      categoria = "Música & Audio";
+    } else if (combinedContent.includes("openai") || combinedContent.includes("chatgpt") || combinedContent.includes("claude") || combinedContent.includes("gemini") || combinedContent.includes("anthropic") || combinedContent.includes("midjourney") || combinedContent.includes("huggingface") || combinedContent.includes("perplexity") || combinedContent.includes(" ai ") || combinedContent.includes("inteligencia artificial") || combinedContent.includes("llm") || combinedContent.includes("copilot")) {
+      categoria = "Inteligencia Artificial";
+    } else if (combinedContent.includes("canva") || combinedContent.includes("figma") || combinedContent.includes("lona") || combinedContent.includes("diseño") || combinedContent.includes("design") || combinedContent.includes("photoshop") || combinedContent.includes("illustrator") || combinedContent.includes("freepik") || combinedContent.includes("unsplash") || combinedContent.includes("vector") || combinedContent.includes("impresion") || combinedContent.includes("impresión")) {
+      categoria = "Diseño & Creatividad";
+    } else if (combinedContent.includes("drive") || combinedContent.includes("docs") || combinedContent.includes("sheets") || combinedContent.includes("excel") || combinedContent.includes("notion") || combinedContent.includes("trello") || combinedContent.includes("asana") || combinedContent.includes("calendar") || combinedContent.includes("keep") || combinedContent.includes("productiv") || combinedContent.includes("task") || combinedContent.includes("workspace") || combinedContent.includes("fgdll")) {
+      categoria = "Productividad & Trabajo";
+    } else if (combinedContent.includes("banco") || combinedContent.includes("bbva") || combinedContent.includes("sat") || combinedContent.includes("factur") || combinedContent.includes("dinero") || combinedContent.includes("finanz") || combinedContent.includes("stripe") || combinedContent.includes("paypal") || combinedContent.includes("pago") || combinedContent.includes("cobro")) {
+      categoria = "Finanzas & Bancos";
+    } else if (combinedContent.includes("whatsapp") || combinedContent.includes("telegram") || combinedContent.includes("slack") || combinedContent.includes("zoom") || combinedContent.includes("meet") || combinedContent.includes("mail") || combinedContent.includes("gmail") || combinedContent.includes("outlook") || combinedContent.includes("discord")) {
+      categoria = "Comunicación";
+    } else if (combinedContent.includes("youtube") || combinedContent.includes("vimeo") || combinedContent.includes("netflix") || combinedContent.includes("video") || combinedContent.includes("stream")) {
+      categoria = "Multimedia & Streaming";
+    }
+
+    const icon = `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=64`;
+
+    return res.json({
+      url: cleanUrl,
+      title: extractedTitle.slice(0, 300),
+      description: extractedDescription.slice(0, 500) || undefined,
+      keywords: keywords.slice(0, 5),
+      categoria,
+      icon,
+    });
+  } catch (err: any) {
+    console.error("Error in /api/router/extract-metadata:", err);
+    return res.status(500).json({ error: err.message || "Failed to extract metadata" });
   }
 });
 
@@ -808,23 +1139,47 @@ function processLocally(
 }
 
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
+  const distPath = path.join(process.cwd(), "dist");
+  const isProdWithDist = process.env.NODE_ENV === "production" && fs.existsSync(path.join(distPath, "index.html"));
+
+  if (!isProdWithDist) {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: { server: httpServer },
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Task-OS server running on http://0.0.0.0:${PORT}`);
   });
+
+  httpServer.on("error", (err: any) => {
+    console.error(`Error on port ${PORT}:`, err.message);
+  });
+
+  // If running on a different port (e.g. Cloud Run PORT=8080), also try binding port 3000
+  if (PORT !== 3000) {
+    try {
+      const secondaryServer = http.createServer(app);
+      secondaryServer.listen(3000, "0.0.0.0", () => {
+        console.log(`Task-OS also listening on http://0.0.0.0:3000`);
+      });
+      secondaryServer.on("error", () => {
+        // Port 3000 already bound or not allowed, ignore silently
+      });
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 startServer();

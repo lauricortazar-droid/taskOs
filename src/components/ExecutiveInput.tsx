@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import {
   Sparkles,
   CornerDownLeft,
@@ -11,9 +11,14 @@ import {
   Tag as TagIcon,
   FolderKanban,
   ChevronDown,
+  Link2,
+  Bookmark,
+  Globe,
+  Pin,
 } from "lucide-react";
 import { TagItem } from "../types";
 import TagSelector from "./TagSelector";
+import { extractUrls } from "../lib/executiveRouter";
 
 interface ExecutiveInputProps {
   onSubmit: (
@@ -21,11 +26,13 @@ interface ExecutiveInputProps {
     imageBase64?: string,
     imageMimeType?: string,
     selectedTags?: string[],
-    preassignedCategory?: string
+    preassignedCategory?: string,
+    urlDestinationOverride?: "TASK" | "GLOBAL" | "URL_LIBRARY" | null
   ) => void;
   isLoading: boolean;
   availableTags: TagItem[];
   onOpenManageTags: () => void;
+  activeTaskTitle?: string | null;
 }
 
 export const CATEGORY_OPTIONS = [
@@ -51,9 +58,14 @@ const PRESET_EXAMPLES = [
     text: "El líder de Tiburón me dijo que necesita su lona máximo mañana porque la experiencia es el viernes.",
   },
   {
-    label: "Pepe (Panel FGDLL)",
-    icon: "💻",
-    text: "Tengo que revisar mañana lo del panel de administración de FGDLL.",
+    label: "🎵 Suno AI (Biblioteca)",
+    icon: "🎶",
+    text: "biblioteca https://suno.com",
+  },
+  {
+    label: "🎨 Canva (Biblioteca)",
+    icon: "🎨",
+    text: "guardar url https://canva.com",
   },
   {
     label: "Pomodoro (Ley 27)",
@@ -72,16 +84,23 @@ export default function ExecutiveInput({
   isLoading,
   availableTags,
   onOpenManageTags,
+  activeTaskTitle,
 }: ExecutiveInputProps) {
   const [input, setInput] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [urlDestinationOverride, setUrlDestinationOverride] = useState<
+    "TASK" | "GLOBAL" | "URL_LIBRARY" | null
+  >(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageMimeType, setImageMimeType] = useState<string>("image/jpeg");
   const [imageFileName, setImageFileName] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect URLs in live input
+  const detectedUrls = useMemo(() => extractUrls(input), [input]);
 
   const handleFileProcess = (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -141,11 +160,13 @@ export default function ExecutiveInput({
       imagePreview || undefined,
       imageMimeType,
       selectedTags.length > 0 ? selectedTags : undefined,
-      selectedCategory || undefined
+      selectedCategory || undefined,
+      urlDestinationOverride
     );
     setInput("");
     setSelectedTags([]);
     setSelectedCategory("");
+    setUrlDestinationOverride(null);
     setImagePreview(null);
     setImageFileName(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -246,11 +267,84 @@ export default function ExecutiveInput({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder="Pega un mensaje de WhatsApp, correo, instrucción de Pepe, pega/arrastra una captura de pantalla o pide: 'Ponme un pomodoro para...'"
+          placeholder="Pega un mensaje de WhatsApp, correo, pega una URL para auto-identificar y guardar en biblioteca, o escribe: 'Ponme un pomodoro...'"
           rows={3}
           disabled={isLoading}
           className="w-full p-3.5 pr-24 bg-transparent text-sm text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none resize-none transition-all leading-relaxed"
         />
+
+        {/* Live Detected URLs Routing Assistant Banner */}
+        {detectedUrls.length > 0 && (
+          <div className="mx-3.5 mb-2.5 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 space-y-2 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950 dark:text-amber-200">
+                <Link2 size={14} className="text-amber-600" />
+                <span>
+                  {detectedUrls.length === 1
+                    ? "URL detectada en el procesador:"
+                    : `${detectedUrls.length} URLs detectadas en el procesador:`}
+                </span>
+                <span className="font-mono text-[11px] text-amber-800 dark:text-amber-300 truncate max-w-[200px]">
+                  {detectedUrls[0]}
+                </span>
+              </div>
+              <span className="text-[10px] uppercase font-black px-1.5 py-0.2 rounded bg-amber-500 text-stone-950">
+                Enrutador Activo
+              </span>
+            </div>
+
+            {/* Destination Selector Buttons */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-[11px] text-stone-500 dark:text-stone-400 font-medium">
+                Destino:
+              </span>
+
+              {/* Option 1: URL Library */}
+              <button
+                type="button"
+                onClick={() => setUrlDestinationOverride("URL_LIBRARY")}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                  urlDestinationOverride === "URL_LIBRARY"
+                    ? "bg-amber-500 text-stone-950 shadow-xs"
+                    : "bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+                }`}
+              >
+                <Bookmark size={12} />
+                <span>⭐ Biblioteca de URLs Día a Día</span>
+              </button>
+
+              {/* Option 2: Active Task */}
+              {activeTaskTitle && (
+                <button
+                  type="button"
+                  onClick={() => setUrlDestinationOverride("TASK")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                    urlDestinationOverride === "TASK" || (urlDestinationOverride === null && activeTaskTitle)
+                      ? "bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-950"
+                      : "bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100"
+                  }`}
+                >
+                  <Pin size={12} />
+                  <span>Tarea Activa</span>
+                </button>
+              )}
+
+              {/* Option 3: Global Resources Archive */}
+              <button
+                type="button"
+                onClick={() => setUrlDestinationOverride("GLOBAL")}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                  urlDestinationOverride === "GLOBAL" || (urlDestinationOverride === null && !activeTaskTitle)
+                    ? "bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-950"
+                    : "bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100"
+                }`}
+              >
+                <Globe size={12} />
+                <span>Archivo Global (Búsqueda)</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Reference Image Preview Area */}
         {imagePreview && (
@@ -394,7 +488,11 @@ export default function ExecutiveInput({
               </>
             ) : (
               <>
-                <span>Procesar</span>
+                <span>
+                  {urlDestinationOverride === "URL_LIBRARY"
+                    ? "Guardar en Biblioteca"
+                    : "Procesar"}
+                </span>
                 <CornerDownLeft size={15} />
               </>
             )}
@@ -420,3 +518,4 @@ export default function ExecutiveInput({
     </div>
   );
 }
+

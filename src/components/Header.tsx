@@ -9,6 +9,11 @@ import {
   Smartphone,
   Laptop,
   RefreshCw,
+  Search,
+  Download,
+  Bookmark,
+  Bell,
+  BellRing,
 } from "lucide-react";
 import { SyncStatus } from "../types";
 
@@ -22,6 +27,12 @@ interface HeaderProps {
   syncStatus: SyncStatus;
   onOpenSync: () => void;
   onOpenWorkspaceModal?: () => void;
+  onOpenUniversalSearch?: () => void;
+  onOpenExportImport?: () => void;
+  onOpenUrlLibrary?: () => void;
+  urlCount?: number;
+  onOpenNotifications?: () => void;
+  isPushActive?: boolean;
 }
 
 export default function Header({
@@ -34,6 +45,12 @@ export default function Header({
   syncStatus,
   onOpenSync,
   onOpenWorkspaceModal,
+  onOpenUniversalSearch,
+  onOpenExportImport,
+  onOpenUrlLibrary,
+  urlCount = 0,
+  onOpenNotifications,
+  isPushActive = false,
 }: HeaderProps) {
   const emailShort = syncStatus.email ? syncStatus.email.split("@")[0] : "Nube";
 
@@ -62,6 +79,37 @@ export default function Header({
 
         {/* Quick action buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Universal Search Header Shortcut */}
+          {onOpenUniversalSearch && (
+            <button
+              id="header-universal-search-btn"
+              onClick={onOpenUniversalSearch}
+              className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-100 hover:bg-stone-200/80 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 text-xs sm:text-sm font-semibold transition-all shadow-2xs min-h-[44px]"
+              title="Búsqueda Universal (Recuperación Unificada)"
+            >
+              <Search size={15} className="text-amber-500" />
+              <span className="hidden sm:inline">Buscar</span>
+            </button>
+          )}
+
+          {/* URL Library Header Shortcut */}
+          {onOpenUrlLibrary && (
+            <button
+              id="header-urls-btn"
+              onClick={onOpenUrlLibrary}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 hover:border-amber-400 dark:hover:border-amber-500 text-stone-800 dark:text-stone-200 text-xs sm:text-sm font-semibold transition-all shadow-2xs min-h-[44px]"
+              title="Biblioteca de URLs del Día a Día (Suno, ChatGPT, Canva...)"
+            >
+              <Bookmark size={15} className="text-amber-500" />
+              <span>Biblioteca URLs</span>
+              {typeof urlCount === "number" && urlCount > 0 && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 font-bold">
+                  {urlCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Cloud Sync Button (Phone ↔ PC) */}
           <button
             id="header-cloud-sync-btn"
@@ -91,6 +139,40 @@ export default function Header({
               {emailShort}
             </span>
           </button>
+
+          {/* FCM Push Notifications Bell Button */}
+          {onOpenNotifications && (
+            <button
+              id="header-notifications-btn"
+              onClick={onOpenNotifications}
+              className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all shadow-2xs min-h-[44px] relative active:scale-95 ${
+                isPushActive
+                  ? "border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200"
+                  : "border-stone-200 dark:border-stone-700 bg-stone-100 hover:bg-stone-200/80 dark:bg-stone-800 dark:hover:bg-stone-700/80 text-stone-700 dark:text-stone-300"
+              }`}
+              title={
+                isPushActive
+                  ? "Notificaciones Push Activas (FCM). Clic para probar alerta o ver historial."
+                  : "Activar Notificaciones Push en el Celular (FCM) al completar tareas o recibir mensajes."
+              }
+            >
+              <div className="relative">
+                {isPushActive ? (
+                  <BellRing size={16} className="text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <Bell size={16} className="text-stone-500" />
+                )}
+                <span
+                  className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-stone-900 ${
+                    isPushActive ? "bg-emerald-500 animate-pulse" : "bg-amber-400"
+                  }`}
+                />
+              </div>
+              <span className="hidden md:inline text-xs font-semibold">
+                {isPushActive ? "Push Activo" : "Alertas"}
+              </span>
+            </button>
+          )}
 
           {/* Google Workspace & Firebase Hub button */}
           {onOpenWorkspaceModal && (

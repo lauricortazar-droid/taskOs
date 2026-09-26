@@ -14,6 +14,8 @@ import {
   Edit3,
   ChevronDown,
   ChevronUp,
+  Link2,
+  ExternalLink,
 } from "lucide-react";
 import { TaskItem, TagItem } from "../types";
 import { getTagColorClass } from "../utils/tagColors";
@@ -246,6 +248,26 @@ export default function TaskItemRow({
                     {task.notas}
                   </p>
                 </div>
+              </div>
+            )}
+
+            {/* Contextual Task Resources (Ley del Foco) */}
+            {task.resources && task.resources.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                {task.resources.map((res, idx) => (
+                  <a
+                    key={idx}
+                    href={res.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 text-[11px] font-semibold transition-colors max-w-[280px]"
+                    title={`${res.title}\n${res.url}`}
+                  >
+                    <Link2 size={12} className="shrink-0 text-blue-500" />
+                    <span className="truncate">{res.title || res.url}</span>
+                    <ExternalLink size={10} className="shrink-0 opacity-70" />
+                  </a>
+                ))}
               </div>
             )}
 

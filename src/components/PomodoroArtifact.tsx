@@ -65,6 +65,15 @@ export default function PomodoroArtifact({
       playChime(mode === "work" ? "work_done" : "break_done");
     }
 
+    // Emit event so work music player can stop music if configured
+    try {
+      window.dispatchEvent(
+        new CustomEvent("pomodoro-alarm-fired", {
+          detail: { mode, completedCycles },
+        })
+      );
+    } catch (_) {}
+
     if (mode === "work") {
       const nextCount = completedCycles + 1;
       setCompletedCycles(nextCount);

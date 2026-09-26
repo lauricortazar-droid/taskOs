@@ -22,6 +22,10 @@ import {
   PiggyBank,
   Smartphone,
   RefreshCw,
+  Printer,
+  ChevronRight,
+  AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import {
   FinancialAccount,
@@ -30,6 +34,7 @@ import {
   FinancialCommitment,
   FinancialAllocation,
   AccountType,
+  PrintItem,
 } from "../types";
 import { playChime } from "../utils/audio";
 
@@ -40,115 +45,104 @@ const STORAGE_KEY_FINANZAS_COMMITMENTS = "task_os_finanzas_commitments_v1";
 const STORAGE_KEY_FINANZAS_ALLOCATIONS = "task_os_finanzas_allocations_v1";
 
 const INITIAL_ACCOUNTS: FinancialAccount[] = [
-  { id: "acc-1", nombre: "BBVA Principal", tipo: "Cuenta Bancaria", saldoActual: 18450 },
-  { id: "acc-2", nombre: "Efectivo Caja Taller", tipo: "Efectivo", saldoActual: 3200 },
-  { id: "acc-3", nombre: "Billetera Mercado Pago", tipo: "Billetera Digital", saldoActual: 1750 },
-  { id: "acc-4", nombre: "Fondo de Emergencia", tipo: "Ahorro", saldoActual: 12000 },
+  { id: "acc-1", nombre: "Cuentas y Líquido Confirmado", tipo: "Cuenta Bancaria", saldoActual: -11326 },
+  { id: "acc-2", nombre: "Efectivo Caja Taller", tipo: "Efectivo", saldoActual: 0 },
 ];
 
 const INITIAL_INCOMES: ExpectedIncome[] = [
   {
-    id: "inc-1",
-    concepto: "Cobro Pedido Lonas #101 Don Pepe",
-    montoEsperado: 370,
-    fechaEsperada: "2026-09-22",
+    id: "inc-molas",
+    concepto: "MOLAS",
+    montoEsperado: 6000,
+    fechaEsperada: "11 sep 2026",
     montoRecibido: 0,
     estado: "Esperado",
-    categoria: "Ventas Lonas",
+    categoria: "Clientes Lonas",
   },
   {
-    id: "inc-2",
-    concepto: "Honorarios Asesoría Psicológica",
-    montoEsperado: 4500,
-    fechaEsperada: "2026-09-24",
+    id: "inc-meds",
+    concepto: "MEDS SPEEDY",
+    montoEsperado: 5000,
+    fechaEsperada: "14 sep 2026",
     montoRecibido: 0,
     estado: "Esperado",
-    categoria: "Profesional",
+    categoria: "Comercial",
   },
   {
-    id: "inc-3",
-    concepto: "Anticipo Universidad FGDLL",
-    montoEsperado: 1800,
-    fechaEsperada: "2026-09-25",
+    id: "inc-playa",
+    concepto: "PLAYA",
+    montoEsperado: 3500,
+    fechaEsperada: "18 sep 2026",
     montoRecibido: 0,
     estado: "Esperado",
-    categoria: "FGDLL",
+    categoria: "Servicios",
   },
 ];
 
 const INITIAL_DEBTS: FinancialDebt[] = [
   {
-    id: "deb-1",
-    acreedor: "Distribuidora de Viniles e Insumos",
-    concepto: "Rollo Lona Front 13oz 3.20m",
-    montoOriginal: 6400,
-    saldoActual: 2200,
-    vencimiento: "2026-09-26",
-    pagoMinimo: 1000,
+    id: "deb-mp",
+    acreedor: "MERCADO PAGO",
+    concepto: "Línea de crédito / Terminal",
+    montoOriginal: 1683,
+    saldoActual: 1683,
+    vencimiento: "14 sep 2026",
+    pagoMinimo: 1683,
     prioridad: "Alta",
     estado: "Activa",
-    historialPagos: [
-      { id: "pay-d1", fecha: "2026-09-10", monto: 2200, cuentaOrigenId: "acc-1", nota: "Abono 1" },
-      { id: "pay-d2", fecha: "2026-09-15", monto: 2000, cuentaOrigenId: "acc-1", nota: "Abono 2" },
-    ],
+    historialPagos: [],
+    notas: "El pago está vencido",
   },
   {
-    id: "deb-2",
-    acreedor: "Tarjeta Banorte",
-    concepto: "Equipo de Computo Taller",
-    montoOriginal: 14500,
-    saldoActual: 4800,
-    vencimiento: "2026-09-29",
-    pagoMinimo: 1200,
+    id: "deb-telcel",
+    acreedor: "Telcel",
+    concepto: "Servicio de telefonía taller e internet",
+    montoOriginal: 3000,
+    saldoActual: 3000,
+    vencimiento: "15 sep 2026",
+    pagoMinimo: 3000,
+    prioridad: "Alta",
+    estado: "Activa",
+    historialPagos: [],
+    notas: "El pago está vencido",
+  },
+  {
+    id: "deb-general",
+    acreedor: "Deuda acumulada proveedores",
+    concepto: "Insumos y rollos de lona",
+    montoOriginal: 34238,
+    saldoActual: 34238,
+    vencimiento: "30 sep 2026",
+    pagoMinimo: 4500,
     prioridad: "Media",
     estado: "Activa",
-    historialPagos: [
-      { id: "pay-d3", fecha: "2026-08-30", monto: 3500, cuentaOrigenId: "acc-1" },
-    ],
+    historialPagos: [],
   },
 ];
 
 const INITIAL_COMMITMENTS: FinancialCommitment[] = [
   {
-    id: "com-1",
-    concepto: "Renta Taller Lonas",
-    monto: 6500,
-    fechaVencimiento: "2026-09-30",
-    categoria: "Vivienda/Local",
+    id: "com-apartados",
+    concepto: "Apartados obligatorios + próximos pagos",
+    monto: 9583,
+    fechaVencimiento: "30 sep 2026",
+    categoria: "Apartados",
     esRecurrente: true,
-    periodicidad: "Mensual",
-  },
-  {
-    id: "com-2",
-    concepto: "Internet y Teléfono",
-    monto: 850,
-    fechaVencimiento: "2026-09-25",
-    categoria: "Servicios",
-    esRecurrente: true,
-    periodicidad: "Mensual",
-  },
-  {
-    id: "com-3",
-    concepto: "Mantenimiento Plotter Mimaki",
-    monto: 1500,
-    fechaVencimiento: "2026-09-27",
-    categoria: "Mantenimiento",
   },
 ];
 
 const INITIAL_ALLOCATIONS: FinancialAllocation[] = [
-  { id: "all-1", concepto: "Apartado Renta Taller", montoApartado: 4000, estado: "Apartado" },
-  { id: "all-2", concepto: "Apartado Insumos Próximos", montoApartado: 1500, estado: "Apartado" },
+  { id: "all-1", concepto: "Apartados inmediatos", montoApartado: 9583, estado: "Apartado" },
 ];
 
 interface SaludFinancieraOSProps {
   userEmail: string;
+  onSendToPrint?: (printItem: PrintItem) => void;
+  onNavigateToLonas?: () => void;
 }
 
-export default function SaludFinancieraOS({ userEmail }: SaludFinancieraOSProps) {
-  const [activeTab, setActiveTab] = useState<"hoy" | "deudas" | "cuentas" | "ingresos" | "simulador">(
-    "hoy"
-  );
+export default function SaludFinancieraOS({ userEmail, onSendToPrint, onNavigateToLonas }: SaludFinancieraOSProps) {
+  const [activeTab, setActiveTab] = useState<"inicio" | "movimientos" | "deudas" | "plan" | "calendario">("inicio");
 
   const [accounts, setAccounts] = useState<FinancialAccount[]>(() => {
     try {
@@ -190,15 +184,20 @@ export default function SaludFinancieraOS({ userEmail }: SaludFinancieraOSProps)
     return INITIAL_ALLOCATIONS;
   });
 
-  // Simulator state: "¿Qué puedo pagar hoy?"
-  const [simulateAmount, setSimulateAmount] = useState<number>(2000);
-  const [selectedDebtToSimulate, setSelectedDebtToSimulate] = useState<string>("");
+  // Action modals
+  const [isGastoModalOpen, setIsGastoModalOpen] = useState(false);
+  const [isIngresoModalOpen, setIsIngresoModalOpen] = useState(false);
+  const [isPagarDeudaModalOpen, setIsPagarDeudaModalOpen] = useState(false);
+  const [selectedDebtToPay, setSelectedDebtToPay] = useState<FinancialDebt | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
-  // Debt payment modal
-  const [isDebtPaymentModalOpen, setIsDebtPaymentModalOpen] = useState(false);
-  const [debtForPayment, setDebtForPayment] = useState<FinancialDebt | null>(null);
-  const [debtAbonoMonto, setDebtAbonoMonto] = useState<number>(0);
-  const [debtAbonoCuenta, setDebtAbonoCuenta] = useState<string>("acc-1");
+  // New Gasto Form state
+  const [gastoMonto, setGastoMonto] = useState<number>(150);
+  const [gastoConcepto, setGastoConcepto] = useState("");
+
+  // New Ingreso Form state
+  const [ingresoMonto, setIngresoMonto] = useState<number>(1000);
+  const [ingresoConcepto, setIngresoConcepto] = useState("");
 
   // Save to localStorage
   useEffect(() => {
@@ -211,487 +210,412 @@ export default function SaludFinancieraOS({ userEmail }: SaludFinancieraOSProps)
     } catch (_) {}
   }, [accounts, incomes, debts, commitments, allocations]);
 
-  // MATEMÁTICA CENTRAL DEL PRINCIPIO RECTOR:
-  // Saldo Líquido Total = Dinero en Cuentas
-  const dineroTotal = accounts.reduce((sum, a) => sum + a.saldoActual, 0);
+  // PRINCIPIO RECTOR:
+  // Lo que tengo:
+  const loQueTengo = accounts.reduce((sum, a) => sum + a.saldoActual, 0);
 
-  // Dinero Comprometido = Apartados activos + Compromisos inmediatos
-  const dineroApartado = allocations
+  // Ya comprometido:
+  const yaComprometido = allocations
     .filter((al) => al.estado === "Apartado")
     .reduce((sum, al) => sum + al.montoApartado, 0);
 
-  // DISPONIBLE REAL = Dinero Total - Dinero Comprometido/Apartado
-  const disponibleReal = Math.max(0, dineroTotal - dineroApartado);
+  // DISPONIBLE REAL = Lo que tengo - Ya comprometido
+  const disponibleReal = loQueTengo - yaComprometido;
 
-  // Deuda total acumulada
-  const deudaTotal = debts
+  // Deuda total conocida:
+  const deudaTotalConocida = debts
     .filter((d) => d.estado === "Activa")
     .reduce((sum, d) => sum + d.saldoActual, 0);
 
-  // Ingresos esperados próximos
-  const ingresosEsperadosProximos = incomes
-    .filter((i) => i.estado === "Esperado" || i.estado === "Parcial")
-    .reduce((sum, i) => sum + (i.montoEsperado - i.montoRecibido), 0);
-
-  // Compromisos próximos (próximos 7 días)
-  const compromisosProximosTotal = commitments
-    .filter((c) => !c.pagado)
-    .reduce((sum, c) => sum + c.monto, 0);
-
-  const handleApplyDebtPayment = (e: React.FormEvent) => {
+  const handleRegisterGasto = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!debtForPayment || debtAbonoMonto <= 0) return;
+    if (gastoMonto <= 0) return;
+    setAccounts((prev) =>
+      prev.map((acc, idx) => (idx === 0 ? { ...acc, saldoActual: acc.saldoActual - gastoMonto } : acc))
+    );
+    setIsGastoModalOpen(false);
+    playChime("tick");
+    setActionFeedback(`Gasto de $${gastoMonto} registrado.`);
+    setTimeout(() => setActionFeedback(null), 3000);
+  };
 
-    const monto = Number(debtAbonoMonto);
+  const handleRegisterIngreso = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (ingresoMonto <= 0) return;
+    setAccounts((prev) =>
+      prev.map((acc, idx) => (idx === 0 ? { ...acc, saldoActual: acc.saldoActual + ingresoMonto } : acc))
+    );
+    setIsIngresoModalOpen(false);
+    playChime("success");
+    setActionFeedback(`Ingreso de $${ingresoMonto} confirmado.`);
+    setTimeout(() => setActionFeedback(null), 3000);
+  };
 
-    // 1. Reducir saldo de la deuda
+  const handlePagarDeuda = (debt: FinancialDebt) => {
     setDebts((prev) =>
-      prev.map((d) => {
-        if (d.id !== debtForPayment.id) return d;
-        const nuevoSaldo = Math.max(0, d.saldoActual - monto);
-        const nuevoHistorial = [
-          ...d.historialPagos,
+      prev.map((d) => (d.id === debt.id ? { ...d, saldoActual: Math.max(0, d.saldoActual - debt.pagoMinimo) } : d))
+    );
+    setAccounts((prev) =>
+      prev.map((acc, idx) => (idx === 0 ? { ...acc, saldoActual: acc.saldoActual - debt.pagoMinimo } : acc))
+    );
+    setIsPagarDeudaModalOpen(false);
+    playChime("work_done");
+    setActionFeedback(`Pago a ${debt.acreedor} registrado.`);
+    setTimeout(() => setActionFeedback(null), 3000);
+  };
+
+  const handleSendPaymentToPrint = (debt: FinancialDebt) => {
+    if (onSendToPrint) {
+      onSendToPrint({
+        id: `print-debt-${debt.id}-${Date.now()}`,
+        tipo: "comprobante_pago",
+        folio: `PAG-${debt.acreedor.slice(0, 3).toUpperCase()}`,
+        titulo: `Pago a ${debt.acreedor}`,
+        clienteNombre: debt.acreedor,
+        fecha: new Date().toISOString().slice(0, 10),
+        items: [
           {
-            id: `pay-${Date.now()}`,
-            fecha: new Date().toISOString().slice(0, 10),
-            monto,
-            cuentaOrigenId: debtAbonoCuenta,
-            nota: "Abono registrado",
+            descripcion: debt.concepto,
+            cantidad: 1,
+            subtotal: debt.pagoMinimo,
           },
-        ];
-        return {
-          ...d,
-          saldoActual: nuevoSaldo,
-          estado: nuevoSaldo === 0 ? "Liquidada" : "Activa",
-          historialPagos: nuevoHistorial,
-        };
-      })
-    );
-
-    // 2. Restar saldo de la cuenta bancaria de origen
-    setAccounts((prev) =>
-      prev.map((acc) => {
-        if (acc.id !== debtAbonoCuenta) return acc;
-        return {
-          ...acc,
-          saldoActual: Math.max(0, acc.saldoActual - monto),
-        };
-      })
-    );
-
-    setIsDebtPaymentModalOpen(false);
-    setDebtForPayment(null);
-    setDebtAbonoMonto(0);
-    playChime("success");
+        ],
+        total: debt.pagoMinimo,
+        anticipo: debt.pagoMinimo,
+        saldo: Math.max(0, debt.saldoActual - debt.pagoMinimo),
+        metodoPago: "Transferencia Bancaria",
+        estado: "Pagado",
+        notas: `Comprobante de abono a deuda. Vencimiento: ${debt.vencimiento}`,
+        origen: "finanzas",
+        createdAt: new Date().toISOString(),
+      });
+      playChime("tick");
+    }
   };
 
-  const handleMarkIncomeReceived = (incomeId: string) => {
-    setIncomes((prev) =>
-      prev.map((inc) => {
-        if (inc.id !== incomeId) return inc;
-        return {
-          ...inc,
-          montoRecibido: inc.montoEsperado,
-          estado: "Recibido",
-        };
-      })
-    );
-
-    // Sumar a cuenta principal
-    setAccounts((prev) =>
-      prev.map((acc, idx) => {
-        if (idx === 0) {
-          const inc = incomes.find((i) => i.id === incomeId);
-          return { ...acc, saldoActual: acc.saldoActual + (inc?.montoEsperado || 0) };
-        }
-        return acc;
-      })
-    );
-    playChime("success");
-  };
-
-  const getAccountIcon = (type: AccountType) => {
-    switch (type) {
-      case "Cuenta Bancaria":
-        return <Building size={16} className="text-blue-500" />;
-      case "Efectivo":
-        return <Banknote size={16} className="text-emerald-500" />;
-      case "Ahorro":
-        return <PiggyBank size={16} className="text-purple-500" />;
-      case "Billetera Digital":
-        return <Smartphone size={16} className="text-cyan-500" />;
-      default:
-        return <Wallet size={16} className="text-stone-500" />;
+  const handleSendIncomeToPrint = (inc: ExpectedIncome) => {
+    if (onSendToPrint) {
+      onSendToPrint({
+        id: `print-inc-${inc.id}`,
+        tipo: "comprobante_pago",
+        folio: `REC-${inc.concepto.slice(0, 3).toUpperCase()}`,
+        titulo: `Ingreso / Recibo • ${inc.concepto}`,
+        clienteNombre: inc.concepto,
+        fecha: inc.fechaEsperada,
+        items: [
+          {
+            descripcion: `Cobro programado: ${inc.categoria}`,
+            cantidad: 1,
+            subtotal: inc.montoEsperado,
+          },
+        ],
+        total: inc.montoEsperado,
+        anticipo: inc.montoEsperado,
+        saldo: 0,
+        metodoPago: "Transferencia BBVA / Efectivo",
+        estado: "Esperado",
+        notas: "Comprobante de ingreso programado generado en Salud Financiera.",
+        origen: "finanzas",
+        createdAt: new Date().toISOString(),
+      });
+      playChime("tick");
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-3xl bg-stone-900 text-stone-100 border border-stone-800 shadow-xl">
+    <div id="salud-financiera-workspace" className="space-y-6">
+      {/* Top Bar with user & date */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
-            <ShieldCheck size={26} />
+          <div className="w-10 h-10 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+            💚
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-black tracking-tight">MI SALUD FINANCIERA</h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-stone-950">
-                Disponible Real
-              </span>
-            </div>
-            <p className="text-xs text-stone-400">
-              Control de liquidez real, compromisos apartados, deudas y qué puedo pagar hoy
-            </p>
+            <h3 className="text-base font-black text-stone-900 dark:text-stone-100 tracking-tight">
+              Mi Salud Financiera
+            </h3>
+            <span className="text-[11px] font-bold text-stone-400">
+              Espacio Privado • Solo tú ves estos datos
+            </span>
           </div>
         </div>
 
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-stone-500 font-bold">Hola Pepe</span>
+            <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 flex items-center justify-center font-bold text-xs">
+              P
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {actionFeedback && (
+        <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-4 py-2.5 flex items-center justify-between text-xs text-emerald-900 dark:text-emerald-200 font-semibold animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-emerald-600 dark:text-emerald-400" />
+            <span>{actionFeedback}</span>
+          </div>
+          <button onClick={() => setActionFeedback(null)} className="text-emerald-700 dark:text-emerald-300 text-xs">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Main Financial Header */}
+      <div className="space-y-1">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[10px] font-black uppercase tracking-wider text-stone-400 font-mono">
+            HOY • 26 SEP 2026
+          </span>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold">
+            <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
+            <span>Salud financiera: En riesgo</span>
+          </div>
+        </div>
+        <h2 className="text-2xl sm:text-4xl font-black text-stone-950 dark:text-white tracking-tight">
+          Tu dinero, sin ilusiones.
+        </h2>
+        <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400">
+          Primero protege lo comprometido. Lo demás sí está disponible.
+        </p>
+      </div>
+
+      {/* 4 Financial Core Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        {/* Card 1: Lo que tengo */}
+        <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xs space-y-1">
+          <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
+            Lo que tengo
+          </span>
+          <p className="text-2xl sm:text-3xl font-black text-stone-950 dark:text-white font-mono tracking-tight">
+            -${Math.abs(loQueTengo).toLocaleString("es-MX")}
+          </p>
+          <span className="text-[11px] text-stone-400 block">Solo dinero confirmado</span>
+        </div>
+
+        {/* Card 2: Ya comprometido */}
+        <div className="p-5 rounded-3xl bg-[#fef9ec] dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 shadow-xs space-y-1">
+          <span className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider block">
+            Ya comprometido
+          </span>
+          <p className="text-2xl sm:text-3xl font-black text-amber-900 dark:text-amber-200 font-mono tracking-tight">
+            ${yaComprometido.toLocaleString("es-MX")}
+          </p>
+          <span className="text-[11px] text-amber-700/80 dark:text-amber-400 block">
+            Apartados + próximos pagos
+          </span>
+        </div>
+
+        {/* Card 3: Disponible Real (Red Card when negative!) */}
+        <div className="p-5 rounded-3xl bg-[#992a2a] text-white shadow-lg space-y-1">
+          <span className="text-xs font-black uppercase tracking-wider text-rose-200 block">
+            Disponible real
+          </span>
+          <p className="text-2xl sm:text-3xl font-black font-mono tracking-tight">
+            -${Math.abs(disponibleReal).toLocaleString("es-MX")}
+          </p>
+          <span className="text-[11px] text-rose-100 block">Necesitas cubrir el déficit</span>
+        </div>
+
+        {/* Card 4: Deuda total conocida */}
+        <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xs space-y-1">
+          <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
+            Deuda total conocida
+          </span>
+          <p className="text-2xl sm:text-3xl font-black text-stone-950 dark:text-white font-mono tracking-tight">
+            ${deudaTotalConocida.toLocaleString("es-MX")}
+          </p>
+          <span className="text-[11px] text-stone-400 block">{debts.length} montos pendientes</span>
+        </div>
+      </div>
+
+      {/* Formula Bar */}
+      <div className="rounded-2xl bg-[#0f281e] text-emerald-200 p-3.5 sm:p-4 font-mono text-xs sm:text-sm font-bold flex flex-wrap items-center justify-between gap-2 shadow-sm">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-stone-400">Cuenta: {userEmail}</span>
+          <span className="text-[10px] sm:text-xs text-emerald-400 uppercase tracking-wider">
+            SALDO CONFIRMADO
+          </span>
+          <span className="text-white font-black">-${Math.abs(loQueTengo).toLocaleString("es-MX")}</span>
+        </div>
+        <span className="text-emerald-500 font-black">—</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] sm:text-xs text-emerald-400 uppercase tracking-wider">
+            COMPROMETIDO
+          </span>
+          <span className="text-white font-black">${yaComprometido.toLocaleString("es-MX")}</span>
+        </div>
+        <span className="text-emerald-500 font-black">=</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] sm:text-xs text-rose-300 uppercase tracking-wider">
+            DISPONIBLE REAL
+          </span>
+          <span className="text-rose-400 font-black">-${Math.abs(disponibleReal).toLocaleString("es-MX")}</span>
         </div>
       </div>
 
-      {/* DASHBOARD "HOY" — PRINCIPIO RECTOR: DISPONIBLE REAL */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* DISPONIBLE REAL (Métrica Reina) */}
-        <div className="p-5 rounded-3xl bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-500/60 shadow-lg shadow-emerald-500/10 space-y-2">
+      {/* 3 Quick Action Buttons */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <button
+          onClick={() => setIsGastoModalOpen(true)}
+          className="p-4 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 hover:border-amber-400 text-left transition-all flex items-center justify-between shadow-xs active:scale-98"
+        >
+          <div>
+            <div className="flex items-center gap-1.5 font-bold text-stone-900 dark:text-stone-100 text-sm">
+              <ArrowUpRight size={16} className="text-rose-500" />
+              <span>Registrar gasto</span>
+            </div>
+            <p className="text-[11px] text-stone-400 mt-0.5">En menos de 20 segundos</p>
+          </div>
+          <span className="text-stone-300">↗</span>
+        </button>
+
+        <button
+          onClick={() => setIsIngresoModalOpen(true)}
+          className="p-4 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 hover:border-emerald-400 text-left transition-all flex items-center justify-between shadow-xs active:scale-98"
+        >
+          <div>
+            <div className="flex items-center gap-1.5 font-bold text-stone-900 dark:text-stone-100 text-sm">
+              <ArrowDownRight size={16} className="text-emerald-500" />
+              <span>Registrar ingreso</span>
+            </div>
+            <p className="text-[11px] text-stone-400 mt-0.5">Recibido o esperado</p>
+          </div>
+          <span className="text-stone-300">↙</span>
+        </button>
+
+        <button
+          onClick={() => setIsPagarDeudaModalOpen(true)}
+          className="p-4 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 hover:border-blue-400 text-left transition-all flex items-center justify-between shadow-xs active:scale-98"
+        >
+          <div>
+            <div className="flex items-center gap-1.5 font-bold text-stone-900 dark:text-stone-100 text-sm">
+              <CreditCard size={16} className="text-blue-500" />
+              <span>Pagar deuda</span>
+            </div>
+            <p className="text-[11px] text-stone-400 mt-0.5">Actualiza el saldo</p>
+          </div>
+          <span className="text-stone-300">💳</span>
+        </button>
+      </div>
+
+      {/* Two Columns: Decisión de hoy & Próximo dinero que entra */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Column 1: DECISIÓN DE HOY: Qué pagar primero */}
+        <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
-              Disponible Real
-            </span>
-            <ShieldCheck size={20} className="text-emerald-600" />
-          </div>
-          <p className="text-3xl sm:text-4xl font-black text-emerald-700 dark:text-emerald-300 tracking-tight font-mono">
-            ${disponibleReal.toLocaleString("es-MX")} <span className="text-sm font-sans">MXN</span>
-          </p>
-          <p className="text-xs text-emerald-800/80 dark:text-emerald-400 leading-snug">
-            Dinero que <strong>realmente puedes gastar hoy</strong> después de apartados obligatorios ($
-            {dineroApartado.toLocaleString()}).
-          </p>
-        </div>
-
-        {/* DINERO TOTAL EN CUENTAS */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-stone-500 text-xs">
-            <span className="font-bold uppercase tracking-wider">Dinero Total en Cuentas</span>
-            <Wallet size={18} className="text-blue-500" />
-          </div>
-          <p className="text-2xl sm:text-3xl font-black text-stone-900 dark:text-stone-100 font-mono">
-            ${dineroTotal.toLocaleString("es-MX")}
-          </p>
-          <div className="flex items-center justify-between text-xs text-stone-500 pt-1 border-t border-stone-100 dark:border-stone-800">
-            <span>Apartado/Comprometido:</span>
-            <span className="font-bold text-amber-600">-${dineroApartado.toLocaleString()}</span>
-          </div>
-        </div>
-
-        {/* DEUDAS ACTIVAS */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-stone-500 text-xs">
-            <span className="font-bold uppercase tracking-wider">Deuda Total Activa</span>
-            <TrendingDown size={18} className="text-rose-500" />
-          </div>
-          <p className="text-2xl sm:text-3xl font-black text-rose-600 dark:text-rose-400 font-mono">
-            ${deudaTotal.toLocaleString("es-MX")}
-          </p>
-          <div className="flex items-center justify-between text-xs text-stone-500 pt-1 border-t border-stone-100 dark:border-stone-800">
-            <span>Ingresos Esperados:</span>
-            <span className="font-bold text-emerald-600">+${ingresosEsperadosProximos.toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* SECCIÓN: "LO QUE NECESITA TU ATENCIÓN" */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-amber-500/10 border border-amber-500/30 space-y-3">
-        <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold text-xs uppercase tracking-wider">
-          <AlertTriangle size={16} />
-          <span>Lo que necesita tu atención hoy</span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <div className="p-3 rounded-2xl bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-900/60 text-xs flex items-center justify-between">
             <div>
-              <p className="font-bold text-stone-900 dark:text-stone-100">Renta Taller Lonas</p>
-              <p className="text-[11px] text-stone-500">Vence en 9 días — $6,500 MXN</p>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-              Apartado $4,000
-            </span>
-          </div>
-
-          <div className="p-3 rounded-2xl bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-900/60 text-xs flex items-center justify-between">
-            <div>
-              <p className="font-bold text-stone-900 dark:text-stone-100">Distribuidora Insumos</p>
-              <p className="text-[11px] text-stone-500">Vence el 26 Sept — Saldo $2,200</p>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
-              Prioridad Alta
-            </span>
-          </div>
-
-          <div className="p-3 rounded-2xl bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-900/60 text-xs flex items-center justify-between">
-            <div>
-              <p className="font-bold text-stone-900 dark:text-stone-100">Cobro Lonas Don Pepe</p>
-              <p className="text-[11px] text-stone-500">Por recibir mañana — $370 MXN</p>
+              <span className="text-[10px] font-black uppercase tracking-wider text-stone-400 block">
+                DECISIÓN DE HOY
+              </span>
+              <h4 className="text-base font-black text-stone-900 dark:text-stone-100">
+                Qué pagar primero
+              </h4>
             </div>
             <button
-              onClick={() => handleMarkIncomeReceived("inc-1")}
-              className="px-2 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[10px]"
+              onClick={() => setIsPagarDeudaModalOpen(true)}
+              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
             >
-              Marcar Recibido
+              Ver plan &gt;
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-stone-100 dark:bg-stone-800/70 border border-stone-200 dark:border-stone-800 overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setActiveTab("hoy")}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 min-h-[40px] flex items-center gap-1.5 ${
-            activeTab === "hoy"
-              ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-xs"
-              : "text-stone-600 dark:text-stone-400 hover:text-stone-900"
-          }`}
-        >
-          <ShieldCheck size={14} />
-          <span>Hoy & Compromisos</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("deudas")}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 min-h-[40px] flex items-center gap-1.5 ${
-            activeTab === "deudas"
-              ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-xs"
-              : "text-stone-600 dark:text-stone-400 hover:text-stone-900"
-          }`}
-        >
-          <TrendingDown size={14} />
-          <span>Deudas ({debts.filter((d) => d.estado === "Activa").length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("cuentas")}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 min-h-[40px] flex items-center gap-1.5 ${
-            activeTab === "cuentas"
-              ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-xs"
-              : "text-stone-600 dark:text-stone-400 hover:text-stone-900"
-          }`}
-        >
-          <Wallet size={14} />
-          <span>Mis Cuentas ({accounts.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("ingresos")}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 min-h-[40px] flex items-center gap-1.5 ${
-            activeTab === "ingresos"
-              ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-xs"
-              : "text-stone-600 dark:text-stone-400 hover:text-stone-900"
-          }`}
-        >
-          <TrendingUp size={14} />
-          <span>Ingresos Esperados ({incomes.filter((i) => i.estado === "Esperado").length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("simulador")}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 min-h-[40px] flex items-center gap-1.5 ${
-            activeTab === "simulador"
-              ? "bg-emerald-600 text-white shadow-xs"
-              : "text-stone-600 dark:text-stone-400 hover:text-stone-900"
-          }`}
-        >
-          <Play size={14} />
-          <span>¿Qué puedo pagar hoy? (Simulador)</span>
-        </button>
-      </div>
-
-      {/* TAB CONTENT: DEUDAS Y PAGOS PARCIALES */}
-      {activeTab === "deudas" && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-stone-800 dark:text-stone-200">
-              Registro y Amortización de Deudas
-            </h3>
-            <span className="text-xs text-stone-500 font-mono">
-              Total Deuda: ${deudaTotal.toLocaleString()} MXN
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3">
-            {debts.map((debt) => (
+          <div className="space-y-3">
+            {debts.slice(0, 3).map((d, idx) => (
               <div
-                key={debt.id}
-                className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xs space-y-3"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 dark:border-stone-800 pb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-sm text-stone-900 dark:text-stone-100">
-                        {debt.acreedor}
-                      </h4>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          debt.prioridad === "Alta"
-                            ? "bg-rose-100 text-rose-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}
-                      >
-                        Prioridad {debt.prioridad}
-                      </span>
-                    </div>
-                    <p className="text-xs text-stone-500 mt-0.5">{debt.concepto}</p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <span className="text-[10px] text-stone-400 block">Saldo Actual</span>
-                      <span className="text-lg font-black text-rose-600 font-mono">
-                        ${debt.saldoActual.toLocaleString()} MXN
-                      </span>
-                    </div>
-                    {debt.estado === "Activa" && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDebtForPayment(debt);
-                          setDebtAbonoMonto(debt.pagoMinimo || debt.saldoActual);
-                          setIsDebtPaymentModalOpen(true);
-                        }}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs min-h-[38px]"
-                      >
-                        Abonar Pago
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Progress bar */}
-                <div>
-                  <div className="flex justify-between text-[11px] text-stone-500 mb-1">
-                    <span>Original: ${debt.montoOriginal.toLocaleString()}</span>
-                    <span>
-                      Pagado: ${(debt.montoOriginal - debt.saldoActual).toLocaleString()} (
-                      {Math.round(((debt.montoOriginal - debt.saldoActual) / debt.montoOriginal) * 100)}%)
-                    </span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-stone-100 dark:bg-stone-800 overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          ((debt.montoOriginal - debt.saldoActual) / debt.montoOriginal) * 100
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* History summary */}
-                <div className="text-[11px] text-stone-400 flex items-center justify-between">
-                  <span>Vence: {debt.vencimiento}</span>
-                  <span>{debt.historialPagos.length} abonos registrados</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB CONTENT: CUENTAS */}
-      {activeTab === "cuentas" && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-stone-800 dark:text-stone-200">
-              Fuentes de Dinero & Cuentas
-            </h3>
-            <span className="text-xs text-stone-500 font-mono">
-              Patrimonio Líquido: ${dineroTotal.toLocaleString()} MXN
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {accounts.map((acc) => (
-              <div
-                key={acc.id}
-                className="p-4 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xs flex items-center justify-between"
+                key={d.id}
+                className="p-3.5 rounded-2xl border border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-800/40 flex items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center">
-                    {getAccountIcon(acc.tipo)}
-                  </div>
+                  <span className="w-7 h-7 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    {idx + 1}
+                  </span>
                   <div>
-                    <h4 className="font-bold text-xs sm:text-sm text-stone-900 dark:text-stone-100">
-                      {acc.nombre}
-                    </h4>
-                    <span className="text-[11px] text-stone-500">{acc.tipo}</span>
+                    <h5 className="font-bold text-xs sm:text-sm text-stone-900 dark:text-stone-100">
+                      {d.acreedor}
+                    </h5>
+                    <p className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold">
+                      El pago está vencido • {d.vencimiento}
+                    </p>
                   </div>
                 </div>
-                <p className="text-base sm:text-lg font-black font-mono text-stone-900 dark:text-stone-100">
-                  ${acc.saldoActual.toLocaleString("es-MX")}
-                </p>
+
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-black text-xs sm:text-sm text-stone-900 dark:text-stone-100">
+                    ${d.pagoMinimo.toLocaleString("es-MX")}
+                  </span>
+                  {onSendToPrint && (
+                    <button
+                      onClick={() => handleSendPaymentToPrint(d)}
+                      className="p-1.5 rounded-lg border border-stone-200 dark:border-stone-700 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300"
+                      title="Mandar comprobante a PRINT 🖨️"
+                    >
+                      <Printer size={13} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handlePagarDeuda(d)}
+                    className="px-2.5 py-1 rounded-xl bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 text-[11px] font-bold"
+                  >
+                    Pagar
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </div>
-      )}
 
-      {/* TAB CONTENT: INGRESOS ESPERADOS VS RECIBIDOS */}
-      {activeTab === "ingresos" && (
-        <div className="space-y-3">
+        {/* Column 2: PRÓXIMO DINERO QUE ENTRA: Ingresos esperados */}
+        <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-stone-800 dark:text-stone-200">
-              Ingresos Esperados (Detecta qué falta por llegar)
-            </h3>
-            <span className="text-xs font-mono text-emerald-600 font-bold">
-              Por Recibir: ${ingresosEsperadosProximos.toLocaleString()} MXN
-            </span>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-stone-400 block">
+                PRÓXIMO DINERO QUE ENTRA
+              </span>
+              <h4 className="text-base font-black text-stone-900 dark:text-stone-100">
+                Ingresos esperados
+              </h4>
+            </div>
+            <button
+              onClick={() => setIsIngresoModalOpen(true)}
+              className="p-1.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200"
+              title="Registrar nuevo ingreso esperado"
+            >
+              <Plus size={16} />
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-2.5">
+          <div className="space-y-3">
             {incomes.map((inc) => (
               <div
                 key={inc.id}
-                className="p-4 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                className="p-3.5 rounded-2xl border border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-800/40 flex items-center justify-between gap-3"
               >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-xs sm:text-sm text-stone-900 dark:text-stone-100">
-                      {inc.concepto}
-                    </h4>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        inc.estado === "Recibido"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {inc.estado}
-                    </span>
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                    <ArrowDownRight size={15} />
                   </div>
-                  <p className="text-[11px] text-stone-500">
-                    Fecha esperada: {inc.fechaEsperada} • Categoría: {inc.categoria}
-                  </p>
+                  <div>
+                    <h5 className="font-bold text-xs sm:text-sm text-stone-900 dark:text-stone-100">
+                      {inc.concepto}
+                    </h5>
+                    <p className="text-[11px] text-stone-400 font-mono">
+                      {inc.fechaEsperada} • {inc.estado}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3 self-end sm:self-center">
-                  <span className="font-black text-sm sm:text-base font-mono text-emerald-600">
-                    ${inc.montoEsperado.toLocaleString()} MXN
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-black text-xs sm:text-sm text-stone-900 dark:text-stone-100">
+                    ${inc.montoEsperado.toLocaleString("es-MX")}
                   </span>
-                  {inc.estado !== "Recibido" && (
+                  {onSendToPrint && (
                     <button
-                      type="button"
-                      onClick={() => handleMarkIncomeReceived(inc.id)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs"
+                      onClick={() => handleSendIncomeToPrint(inc)}
+                      className="p-1.5 rounded-lg border border-stone-200 dark:border-stone-700 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300"
+                      title="Mandar recibo a PRINT 🖨️"
                     >
-                      Confirmar Ingreso
+                      <Printer size={13} />
                     </button>
                   )}
                 </div>
@@ -699,122 +623,103 @@ export default function SaludFinancieraOS({ userEmail }: SaludFinancieraOSProps)
             ))}
           </div>
         </div>
-      )}
+      </div>
 
-      {/* TAB CONTENT: SIMULADOR "¿QUÉ PUEDO PAGAR HOY?" */}
-      {activeTab === "simulador" && (
-        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xs space-y-4">
-          <div className="flex items-center gap-2">
-            <Play size={20} className="text-emerald-600" />
-            <div>
-              <h3 className="text-base font-black text-stone-900 dark:text-stone-100">
-                Asistente de Decisión: ¿Qué puedo pagar hoy?
-              </h3>
-              <p className="text-xs text-stone-500">
-                Simula un pago antes de tocar tu dinero real. No modifica ningún dato hasta que confirmes.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-            <div>
-              <label className="text-xs font-bold text-stone-700 dark:text-stone-300 block mb-1">
-                Monto que estás considerando pagar hoy (MXN):
-              </label>
-              <input
-                type="number"
-                step="100"
-                min="0"
-                max={disponibleReal}
-                value={simulateAmount}
-                onChange={(e) => setSimulateAmount(parseFloat(e.target.value) || 0)}
-                className="w-full px-4 py-2.5 rounded-2xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-base font-black text-emerald-600 font-mono"
-              />
-              <span className="text-[11px] text-stone-400 mt-1 block">
-                Máximo disponible seguro: ${disponibleReal.toLocaleString()} MXN
-              </span>
-            </div>
-
-            {/* Escenario Calculado */}
-            <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/40 border border-stone-200 dark:border-stone-700 space-y-2 text-xs">
-              <span className="font-bold text-stone-800 dark:text-stone-200 block uppercase tracking-wider text-[11px]">
-                Escenario Resultante:
-              </span>
-              <div className="flex justify-between">
-                <span className="text-stone-500">Saldo Líquido Posterior:</span>
-                <span className="font-bold font-mono">
-                  ${Math.max(0, dineroTotal - simulateAmount).toLocaleString()} MXN
-                </span>
+      {/* Gasto Modal */}
+      {isGastoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-stone-950/70 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-white dark:bg-stone-900 rounded-3xl p-5 shadow-2xl space-y-4">
+            <h4 className="font-black text-sm text-stone-900 dark:text-stone-100">Registrar Gasto Rápido</h4>
+            <form onSubmit={handleRegisterGasto} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-stone-400 uppercase">Monto ($ MXN)</label>
+                <input
+                  type="number"
+                  required
+                  value={gastoMonto}
+                  onChange={(e) => setGastoMonto(Number(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-800 text-lg font-mono font-bold"
+                />
               </div>
-              <div className="flex justify-between">
-                <span className="text-stone-500">Dinero Apartado Protegido:</span>
-                <span className="font-bold font-mono text-amber-600">
-                  ${dineroApartado.toLocaleString()} MXN
-                </span>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsGastoModalOpen(false)}
+                  className="px-3 py-1.5 rounded-xl border text-xs"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-rose-600 text-white font-bold text-xs">
+                  Guardar Gasto
+                </button>
               </div>
-              <div className="flex justify-between border-t pt-1 font-black">
-                <span className="text-emerald-700 dark:text-emerald-400">Disponible Restante:</span>
-                <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                  ${Math.max(0, disponibleReal - simulateAmount).toLocaleString()} MXN
-                </span>
-              </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Debt Payment Modal */}
-      {isDebtPaymentModalOpen && debtForPayment && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-stone-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-white dark:bg-stone-900 rounded-3xl p-5 shadow-2xl border border-stone-200 dark:border-stone-800 space-y-4">
-            <h4 className="font-bold text-sm text-stone-900 dark:text-stone-100">
-              Registrar Abono a {debtForPayment.acreedor}
-            </h4>
-            <p className="text-xs text-stone-500">Saldo actual de la deuda: ${debtForPayment.saldoActual} MXN</p>
-            <form onSubmit={handleApplyDebtPayment} className="space-y-3">
+      {/* Ingreso Modal */}
+      {isIngresoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-stone-950/70 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-white dark:bg-stone-900 rounded-3xl p-5 shadow-2xl space-y-4">
+            <h4 className="font-black text-sm text-stone-900 dark:text-stone-100">Registrar Ingreso</h4>
+            <form onSubmit={handleRegisterIngreso} className="space-y-3">
               <div>
-                <label className="text-[11px] font-bold text-stone-500">Monto del Abono (MXN)</label>
+                <label className="text-[10px] font-bold text-stone-400 uppercase">Monto ($ MXN)</label>
                 <input
                   type="number"
                   required
-                  max={debtForPayment.saldoActual}
-                  value={debtAbonoMonto}
-                  onChange={(e) => setDebtAbonoMonto(parseFloat(e.target.value) || 0)}
-                  className="w-full mt-1 px-3 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-sm font-bold text-emerald-600 font-mono"
+                  value={ingresoMonto}
+                  onChange={(e) => setIngresoMonto(Number(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-800 text-lg font-mono font-bold"
                 />
               </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-stone-500">Cuenta de Retiro</label>
-                <select
-                  value={debtAbonoCuenta}
-                  onChange={(e) => setDebtAbonoCuenta(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs"
-                >
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.nombre} (${acc.saldoActual.toLocaleString()})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsDebtPaymentModalOpen(false)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-500"
+                  onClick={() => setIsIngresoModalOpen(false)}
+                  className="px-3 py-1.5 rounded-xl border text-xs"
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
-                >
-                  Aplicar Abono
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs">
+                  Confirmar Ingreso
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Pagar Deuda Modal */}
+      {isPagarDeudaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-stone-950/70 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white dark:bg-stone-900 rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h4 className="font-black text-sm text-stone-900 dark:text-stone-100">Pagar Deuda / Abono</h4>
+              <button onClick={() => setIsPagarDeudaModalOpen(false)} className="text-stone-400">
+                ✕
+              </button>
+            </div>
+            <div className="space-y-2">
+              {debts.map((d) => (
+                <div
+                  key={d.id}
+                  className="p-3 rounded-2xl border border-stone-200 dark:border-stone-800 flex items-center justify-between"
+                >
+                  <div>
+                    <h5 className="font-bold text-xs">{d.acreedor}</h5>
+                    <p className="text-[11px] text-stone-400 font-mono">Saldo: ${d.saldoActual.toLocaleString()}</p>
+                  </div>
+                  <button
+                    onClick={() => handlePagarDeuda(d)}
+                    className="px-3 py-1.5 rounded-xl bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 text-xs font-bold"
+                  >
+                    Abonar ${d.pagoMinimo}
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

@@ -8,7 +8,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "./firebase";
-import { TaskItem } from "../types";
+import { TaskItem, TaskResource, GlobalResource, UrlLibraryItem } from "../types";
 
 export interface UserProfileData {
   userId: string;
@@ -40,6 +40,13 @@ function sanitizeTaskForFirestore(task: TaskItem, userId: string) {
   if (task.contacto?.telefono) payload.telefono = task.contacto.telefono.slice(0, 50);
   if (Array.isArray(task.etiquetas) && task.etiquetas.length > 0) {
     payload.etiquetas = task.etiquetas.slice(0, 20).map((t) => String(t).slice(0, 50));
+  }
+  if (Array.isArray(task.resources) && task.resources.length > 0) {
+    payload.resources = task.resources.slice(0, 50).map((r) => ({
+      url: String(r.url || "").slice(0, 1000),
+      title: String(r.title || "").slice(0, 300),
+      addedAt: String(r.addedAt || new Date().toISOString()).slice(0, 50),
+    }));
   }
 
   return payload;
@@ -109,6 +116,13 @@ export async function loadTasksFromFirestore(userId: string): Promise<TaskItem[]
             : undefined,
           etiquetas: Array.isArray(data.etiquetas) ? data.etiquetas : [],
           notas: data.notas || undefined,
+          resources: Array.isArray(data.resources)
+            ? data.resources.map((r: any) => ({
+                url: r.url || "",
+                title: r.title || r.url || "",
+                addedAt: r.addedAt || new Date().toISOString(),
+              }))
+            : [],
         });
       }
     });
@@ -147,6 +161,13 @@ export function subscribeToFirestoreTasks(
               : undefined,
             etiquetas: Array.isArray(data.etiquetas) ? data.etiquetas : [],
             notas: data.notas || undefined,
+            resources: Array.isArray(data.resources)
+              ? data.resources.map((r: any) => ({
+                  url: r.url || "",
+                  title: r.title || r.url || "",
+                  addedAt: r.addedAt || new Date().toISOString(),
+                }))
+              : [],
           });
         }
       });
@@ -162,6 +183,125 @@ export function subscribeToFirestoreTasks(
   );
 
   return unsubscribe;
+}
+
+// =========================================================
+// GLOBAL RESOURCES FIRESTORE SERVICE (Universal Search Index)
+// =========================================================
+function sanitizeGlobalResourceForFirestore(res: GlobalResource, userId: string) {
+  return {
+    userId,
+    url: String(res.url || "").trim().slice(0, 1000),
+    title: String(res.title || res.url || "").trim().slice(0, 300),
+    keywords: Array.isArray(res.keywords)
+      ? res.keywords.slice(0, 10).map((k) => String(k).slice(0, 50))
+      : [],
+    savedAt: String(res.savedAt || new Date().toISOString()).slice(0, 50),
+  };
+}
+
+export async function saveGlobalResourceToFirestore(
+  userId: string,
+  resource: GlobalResource
+): Promise<void> {
+  const resourceIdStr = String(resource.id).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const path = `users/${userId}/global_resources/${resourceIdStr}`;
+  const resRef = doc(db, "users", userId, "global_resources", resourceIdStr);
+  const payload = sanitizeGlobalResourceForFirestore(resource, userId);
+
+  try {
+    await setDoc(resRef, payload, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteGlobalResourceFromFirestore(
+  userId: string,
+  resourceId: string
+): Promise<void> {
+  const resourceIdStr = String(resourceId).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const path = `users/${userId}/global_resources/${resourceIdStr}`;
+  const resRef = doc(db, "users", userId, "global_resources", resourceIdStr);
+  try {
+    await deleteDoc(resRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export async function loadGlobalResourcesFromFirestore(userId: string): Promise<GlobalResource[]> {
+  const path = `users/${userId}/global_resources`;
+  try {
+    const snapshot = await getDocs(collection(db, "users", userId, "global_resources"));
+    const resources: GlobalResource[] = [];
+    snapshot.forEach((snap) => {
+      const data = snap.data();
+      resources.push({
+        id: snap.id,
+        url: data.url || "",
+        title: data.title || data.url || "",
+        keywords: Array.isArray(data.keywords) ? data.keywords : [],
+        savedAt: data.savedAt || new Date().toISOString(),
+      });
+    });
+    return resources.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export function subscribeToGlobalResources(
+  userId: string,
+  onResourcesChange: (resources: GlobalResource[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const path = `users/${userId}/global_resources`;
+  const unsubscribe = onSnapshot(
+    collection(db, "users", userId, "global_resources"),
+    (snapshot) => {
+      const resources: GlobalResource[] = [];
+      snapshot.forEach((snap) => {
+        const data = snap.data();
+        resources.push({
+          id: snap.id,
+          url: data.url || "",
+          title: data.title || data.url || "",
+          keywords: Array.isArray(data.keywords) ? data.keywords : [],
+          savedAt: data.savedAt || new Date().toISOString(),
+        });
+      });
+      onResourcesChange(resources.sort((a, b) => b.savedAt.localeCompare(a.savedAt)));
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (err: any) {
+        if (onError) onError(err);
+      }
+    }
+  );
+
+  return unsubscribe;
+}
+
+export async function batchSyncGlobalResourcesToFirestore(
+  userId: string,
+  resources: GlobalResource[]
+): Promise<void> {
+  const path = `users/${userId}/global_resources`;
+  try {
+    const batch = writeBatch(db);
+    resources.forEach((r) => {
+      const resId = String(r.id).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const resRef = doc(db, "users", userId, "global_resources", resId);
+      const payload = sanitizeGlobalResourceForFirestore(r, userId);
+      batch.set(resRef, payload, { merge: true });
+    });
+    await batch.commit();
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
 }
 
 // User Profile & Focus State sync
@@ -186,3 +326,145 @@ export async function saveProfileToFirestore(
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
+
+// =========================================================
+// URL LIBRARY SERVICE (Biblioteca de URLs Día a Día)
+// =========================================================
+function sanitizeUrlLibraryItemForFirestore(item: UrlLibraryItem, userId: string) {
+  const payload: Record<string, any> = {
+    userId,
+    url: String(item.url || "").trim().slice(0, 1000),
+    title: String(item.title || item.url || "").trim().slice(0, 300),
+    createdAt: String(item.createdAt || new Date().toISOString()).slice(0, 50),
+  };
+  if (item.categoria) payload.categoria = item.categoria.slice(0, 100);
+  if (item.descripcion) payload.descripcion = item.descripcion.slice(0, 1000);
+  if (item.icon) payload.icon = item.icon.slice(0, 1000);
+  if (typeof item.isFavorite === "boolean") payload.isFavorite = item.isFavorite;
+  if (typeof item.clicks === "number") payload.clicks = item.clicks;
+  if (Array.isArray(item.keywords) && item.keywords.length > 0) {
+    payload.keywords = item.keywords.slice(0, 20).map((k) => String(k).slice(0, 50));
+  }
+  if (item.updatedAt) payload.updatedAt = item.updatedAt.slice(0, 50);
+  if (item.lastOpenedAt) payload.lastOpenedAt = item.lastOpenedAt.slice(0, 50);
+  return payload;
+}
+
+export async function saveUrlLibraryItemToFirestore(
+  userId: string,
+  item: UrlLibraryItem
+): Promise<void> {
+  const idStr = String(item.id).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const path = `users/${userId}/url_library/${idStr}`;
+  const docRef = doc(db, "users", userId, "url_library", idStr);
+  const payload = sanitizeUrlLibraryItemForFirestore(item, userId);
+
+  try {
+    await setDoc(docRef, payload, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteUrlLibraryItemFromFirestore(
+  userId: string,
+  itemId: string
+): Promise<void> {
+  const idStr = String(itemId).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const path = `users/${userId}/url_library/${idStr}`;
+  const docRef = doc(db, "users", userId, "url_library", idStr);
+  try {
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export async function loadUrlLibraryFromFirestore(userId: string): Promise<UrlLibraryItem[]> {
+  const path = `users/${userId}/url_library`;
+  try {
+    const snapshot = await getDocs(collection(db, "users", userId, "url_library"));
+    const items: UrlLibraryItem[] = [];
+    snapshot.forEach((snap) => {
+      const data = snap.data();
+      items.push({
+        id: snap.id,
+        url: data.url || "",
+        title: data.title || data.url || "",
+        categoria: data.categoria || undefined,
+        descripcion: data.descripcion || undefined,
+        keywords: Array.isArray(data.keywords) ? data.keywords : [],
+        icon: data.icon || undefined,
+        isFavorite: Boolean(data.isFavorite),
+        clicks: typeof data.clicks === "number" ? data.clicks : 0,
+        lastOpenedAt: data.lastOpenedAt || undefined,
+        createdAt: data.createdAt || new Date().toISOString(),
+        updatedAt: data.updatedAt || undefined,
+      });
+    });
+    return items.sort((a, b) => (b.clicks || 0) - (a.clicks || 0));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export function subscribeToUrlLibrary(
+  userId: string,
+  onUrlsChange: (urls: UrlLibraryItem[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const path = `users/${userId}/url_library`;
+  const unsubscribe = onSnapshot(
+    collection(db, "users", userId, "url_library"),
+    (snapshot) => {
+      const items: UrlLibraryItem[] = [];
+      snapshot.forEach((snap) => {
+        const data = snap.data();
+        items.push({
+          id: snap.id,
+          url: data.url || "",
+          title: data.title || data.url || "",
+          categoria: data.categoria || undefined,
+          descripcion: data.descripcion || undefined,
+          keywords: Array.isArray(data.keywords) ? data.keywords : [],
+          icon: data.icon || undefined,
+          isFavorite: Boolean(data.isFavorite),
+          clicks: typeof data.clicks === "number" ? data.clicks : 0,
+          lastOpenedAt: data.lastOpenedAt || undefined,
+          createdAt: data.createdAt || new Date().toISOString(),
+          updatedAt: data.updatedAt || undefined,
+        });
+      });
+      onUrlsChange(items.sort((a, b) => (b.clicks || 0) - (a.clicks || 0)));
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (err: any) {
+        if (onError) onError(err);
+      }
+    }
+  );
+
+  return unsubscribe;
+}
+
+export async function batchSyncUrlLibraryToFirestore(
+  userId: string,
+  urls: UrlLibraryItem[]
+): Promise<void> {
+  const path = `users/${userId}/url_library`;
+  try {
+    const batch = writeBatch(db);
+    urls.forEach((item) => {
+      const idStr = String(item.id).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const docRef = doc(db, "users", userId, "url_library", idStr);
+      const payload = sanitizeUrlLibraryItemForFirestore(item, userId);
+      batch.set(docRef, payload, { merge: true });
+    });
+    await batch.commit();
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
