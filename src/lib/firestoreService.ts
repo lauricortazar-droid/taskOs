@@ -38,6 +38,13 @@ function sanitizeTaskForFirestore(task: TaskItem, userId: string) {
   if (task.notas) payload.notas = task.notas.slice(0, 5000);
   if (task.solicitante) payload.solicitante = task.solicitante.slice(0, 150);
   if (task.contacto?.telefono) payload.telefono = task.contacto.telefono.slice(0, 50);
+  if (task.googleTaskId) payload.googleTaskId = String(task.googleTaskId).slice(0, 200);
+  if (task.googleCalendarEventId) payload.googleCalendarEventId = String(task.googleCalendarEventId).slice(0, 200);
+  if (task.googleCalendarHtmlLink) payload.googleCalendarHtmlLink = String(task.googleCalendarHtmlLink).slice(0, 1000);
+  if (task.googleSyncStatus) payload.googleSyncStatus = task.googleSyncStatus;
+  if (task.lastGoogleSync) payload.lastGoogleSync = String(task.lastGoogleSync).slice(0, 50);
+  if (task.imagenReferencia) payload.imagenReferencia = String(task.imagenReferencia).slice(0, 50000);
+
   if (Array.isArray(task.etiquetas) && task.etiquetas.length > 0) {
     payload.etiquetas = task.etiquetas.slice(0, 20).map((t) => String(t).slice(0, 50));
   }
@@ -116,6 +123,12 @@ export async function loadTasksFromFirestore(userId: string): Promise<TaskItem[]
             : undefined,
           etiquetas: Array.isArray(data.etiquetas) ? data.etiquetas : [],
           notas: data.notas || undefined,
+          googleTaskId: data.googleTaskId || undefined,
+          googleCalendarEventId: data.googleCalendarEventId || undefined,
+          googleCalendarHtmlLink: data.googleCalendarHtmlLink || undefined,
+          googleSyncStatus: data.googleSyncStatus || undefined,
+          lastGoogleSync: data.lastGoogleSync || undefined,
+          imagenReferencia: data.imagenReferencia || undefined,
           resources: Array.isArray(data.resources)
             ? data.resources.map((r: any) => ({
                 url: r.url || "",
@@ -161,6 +174,12 @@ export function subscribeToFirestoreTasks(
               : undefined,
             etiquetas: Array.isArray(data.etiquetas) ? data.etiquetas : [],
             notas: data.notas || undefined,
+            googleTaskId: data.googleTaskId || undefined,
+            googleCalendarEventId: data.googleCalendarEventId || undefined,
+            googleCalendarHtmlLink: data.googleCalendarHtmlLink || undefined,
+            googleSyncStatus: data.googleSyncStatus || undefined,
+            lastGoogleSync: data.lastGoogleSync || undefined,
+            imagenReferencia: data.imagenReferencia || undefined,
             resources: Array.isArray(data.resources)
               ? data.resources.map((r: any) => ({
                   url: r.url || "",

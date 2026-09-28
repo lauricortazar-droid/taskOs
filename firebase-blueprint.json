@@ -15,6 +15,12 @@
         "notas": { "type": "string", "maxLength": 5000, "description": "Notes or action items" },
         "solicitante": { "type": "string", "maxLength": 150, "description": "Requester contact name" },
         "telefono": { "type": "string", "maxLength": 50, "description": "Requester phone number" },
+        "googleTaskId": { "type": "string", "maxLength": 200, "description": "Google Tasks ID" },
+        "googleCalendarEventId": { "type": "string", "maxLength": 200, "description": "Google Calendar Event ID" },
+        "googleCalendarHtmlLink": { "type": "string", "maxLength": 1000, "description": "Google Calendar direct web link" },
+        "googleSyncStatus": { "type": "string", "maxLength": 30, "description": "Google Sync Status" },
+        "lastGoogleSync": { "type": "string", "maxLength": 50, "description": "Last Google sync timestamp" },
+        "imagenReferencia": { "type": "string", "maxLength": 50000, "description": "Reference image data" },
         "resources": { "type": "array", "description": "Contextual links and resources attached to this task" },
         "createdAt": { "type": "string", "format": "date-time", "description": "Created at timestamp" },
         "updatedAt": { "type": "string", "format": "date-time", "description": "Updated at timestamp" }

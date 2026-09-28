@@ -1137,6 +1137,9 @@ export default function App() {
       prev.map((t) => {
         if (t.id === id) {
           const updated = { ...t, estado: newStatus };
+          if (auth.currentUser) {
+            saveTaskToFirestore(auth.currentUser.uid, updated);
+          }
           // If task completed and delegated by someone else, generate delivery notice (Ley 16)
           if (newStatus === "Completado" && t.solicitante && t.solicitante.toLowerCase() !== "pepe") {
             const reply = `Ya quedó listo lo que me pediste (${t.tarea}). Te lo comparto por aquí.`;
@@ -1206,7 +1209,16 @@ export default function App() {
 
   const handleUpdateTaskFechaLimite = (id: number, fechaLimite: string) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, fechaLimite: fechaLimite || undefined } : t))
+      prev.map((t) => {
+        if (t.id === id) {
+          const updated = { ...t, fechaLimite: fechaLimite || undefined };
+          if (auth.currentUser) {
+            saveTaskToFirestore(auth.currentUser.uid, updated);
+          }
+          return updated;
+        }
+        return t;
+      })
     );
     setLastActionSummary(
       fechaLimite
@@ -1344,7 +1356,11 @@ export default function App() {
           const next = exists
             ? current.filter((e) => e !== tagName)
             : [...current, tagName];
-          return { ...t, etiquetas: next };
+          const updated = { ...t, etiquetas: next };
+          if (auth.currentUser) {
+            saveTaskToFirestore(auth.currentUser.uid, updated);
+          }
+          return updated;
         }
         return t;
       })
@@ -1353,7 +1369,16 @@ export default function App() {
 
   const handleUpdateTaskNotes = (taskId: number, notes: string) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, notas: notes } : t))
+      prev.map((t) => {
+        if (t.id === taskId) {
+          const updated = { ...t, notas: notes };
+          if (auth.currentUser) {
+            saveTaskToFirestore(auth.currentUser.uid, updated);
+          }
+          return updated;
+        }
+        return t;
+      })
     );
     setLastActionSummary(`Observaciones actualizadas para la tarea #${taskId}.`);
   };
@@ -1773,6 +1798,17 @@ export default function App() {
         onImportContacts={handleImportGoogleContacts}
         onImportTasks={handleImportGoogleTasks}
         onTasksSynced={handleTasksSyncedFromFirestore}
+        onUpdateTasks={(updated) => {
+          setTasks(updated);
+          if (auth.currentUser) {
+            batchSyncTasksToFirestore(auth.currentUser.uid, updated);
+          }
+          try {
+            localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(updated));
+          } catch (e) {
+            console.error("Error saving tasks", e);
+          }
+        }}
       />
 
       {/* Contacts Management Modal */}

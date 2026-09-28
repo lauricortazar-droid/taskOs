@@ -255,7 +255,7 @@ export async function sendPushNotification(payload: NotificationPayload): Promis
             url: payload.url || "/",
             timestamp: Date.now(),
           },
-        });
+        } as any);
         return true;
       }
     }

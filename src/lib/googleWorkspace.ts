@@ -189,6 +189,74 @@ export async function createCalendarEvent(
   return await res.json();
 }
 
+export async function updateCalendarEvent(
+  accessToken: string,
+  eventId: string,
+  event: {
+    summary: string;
+    description?: string;
+    date: string; // YYYY-MM-DD
+    startTime?: string; // HH:mm or full ISO
+    durationMinutes?: number;
+  }
+): Promise<GoogleCalendarEvent> {
+  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`;
+
+  let body: any;
+  if (event.startTime) {
+    const startIso = `${event.date}T${event.startTime}:00`;
+    const startDate = new Date(startIso);
+    const duration = event.durationMinutes || 60;
+    const endDate = new Date(startDate.getTime() + duration * 60 * 1000);
+
+    body = {
+      summary: event.summary,
+      description: event.description || "Evento sincronizado desde Task-OS",
+      start: { dateTime: startDate.toISOString() },
+      end: { dateTime: endDate.toISOString() },
+    };
+  } else {
+    body = {
+      summary: event.summary,
+      description: event.description || "Tarea sincronizada desde Task-OS",
+      start: { date: event.date },
+      end: { date: event.date },
+    };
+  }
+
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Error al actualizar evento en Google Calendar (${res.status}): ${err}`);
+  }
+
+  return await res.json();
+}
+
+export async function deleteCalendarEvent(
+  accessToken: string,
+  eventId: string
+): Promise<void> {
+  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok && res.status !== 404) {
+    const err = await res.text();
+    throw new Error(`Error al eliminar evento en Google Calendar (${res.status}): ${err}`);
+  }
+}
+
 /* =========================================================
    3. GOOGLE TASKS
 ========================================================= */
@@ -262,6 +330,71 @@ export async function createGoogleTask(
   }
 
   return await res.json();
+}
+
+export async function updateGoogleTask(
+  accessToken: string,
+  taskId: string,
+  task: {
+    title?: string;
+    notes?: string;
+    dueDate?: string; // YYYY-MM-DD
+    status?: "needsAction" | "completed";
+    taskListId?: string;
+  }
+): Promise<GoogleTaskItem> {
+  const listId = task.taskListId || "@default";
+  const url = `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`;
+
+  const body: any = { id: taskId };
+  if (task.title !== undefined) body.title = task.title;
+  if (task.notes !== undefined) body.notes = task.notes;
+  if (task.status !== undefined) body.status = task.status;
+  if (task.dueDate !== undefined) {
+    body.due = task.dueDate ? `${task.dueDate}T00:00:00.000Z` : null;
+  }
+
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Error al actualizar tarea en Google Tasks (${res.status}): ${err}`);
+  }
+
+  return await res.json();
+}
+
+export async function patchGoogleTaskStatus(
+  accessToken: string,
+  taskId: string,
+  status: "needsAction" | "completed",
+  taskListId: string = "@default"
+): Promise<GoogleTaskItem> {
+  return updateGoogleTask(accessToken, taskId, { status, taskListId });
+}
+
+export async function deleteGoogleTask(
+  accessToken: string,
+  taskId: string,
+  taskListId: string = "@default"
+): Promise<void> {
+  const url = `https://tasks.googleapis.com/tasks/v1/lists/${taskListId}/tasks/${taskId}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok && res.status !== 404) {
+    const err = await res.text();
+    throw new Error(`Error al eliminar tarea en Google Tasks (${res.status}): ${err}`);
+  }
 }
 
 /* =========================================================

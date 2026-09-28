@@ -50,6 +50,11 @@ export interface TaskItem {
   notas?: string; // Sub-notas u observaciones persistentes de la tarea
   fechaLimite?: string; // YYYY-MM-DD fecha límite / deadline de entrega
   resources?: TaskResource[]; // Contextual links/resources attached to this task (Ley del Foco)
+  googleTaskId?: string; // ID de Google Tasks vinculado
+  googleCalendarEventId?: string; // ID del Evento en Google Calendar vinculado
+  googleCalendarHtmlLink?: string; // Enlace web directo al evento de Google Calendar
+  googleSyncStatus?: "synced" | "pending" | "conflict";
+  lastGoogleSync?: string; // Marca de tiempo ISO del último sincronizado
 }
 
 export interface GlobalResource {

@@ -28,16 +28,22 @@ service cloud.firestore {
 
     function isValidTask(data) {
       return data.keys().hasAll(['userId', 'tarea', 'estado', 'fechaIngreso']) &&
-             data.keys().hasOnly(['userId', 'tarea', 'estado', 'fechaIngreso', 'fechaLimite', 'dominio', 'etiquetas', 'notas', 'solicitante', 'telefono', 'contacto', 'id', 'resources', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['userId', 'tarea', 'estado', 'fechaIngreso', 'fechaLimite', 'dominio', 'etiquetas', 'notas', 'solicitante', 'telefono', 'contacto', 'id', 'resources', 'googleTaskId', 'googleCalendarEventId', 'googleCalendarHtmlLink', 'googleSyncStatus', 'lastGoogleSync', 'imagenReferencia', 'createdAt', 'updatedAt']) &&
              data.userId is string && data.userId == request.auth.uid &&
              data.tarea is string && data.tarea.size() > 0 && data.tarea.size() <= 1000 &&
-             data.estado is string && data.estado in ['Pendiente', 'En Proceso', 'Completada'] &&
+             data.estado is string && data.estado in ['Pendiente', 'En Proceso', 'Completada', 'Completado'] &&
              data.fechaIngreso is string && data.fechaIngreso.size() <= 30 &&
              (!('fechaLimite' in data) || (data.fechaLimite is string && data.fechaLimite.size() <= 30)) &&
              (!('dominio' in data) || (data.dominio is string && data.dominio.size() <= 100)) &&
              (!('notas' in data) || (data.notas is string && data.notas.size() <= 5000)) &&
              (!('solicitante' in data) || (data.solicitante is string && data.solicitante.size() <= 150)) &&
              (!('telefono' in data) || (data.telefono is string && data.telefono.size() <= 50)) &&
+             (!('googleTaskId' in data) || (data.googleTaskId is string && data.googleTaskId.size() <= 200)) &&
+             (!('googleCalendarEventId' in data) || (data.googleCalendarEventId is string && data.googleCalendarEventId.size() <= 200)) &&
+             (!('googleCalendarHtmlLink' in data) || (data.googleCalendarHtmlLink is string && data.googleCalendarHtmlLink.size() <= 1000)) &&
+             (!('googleSyncStatus' in data) || (data.googleSyncStatus is string && data.googleSyncStatus.size() <= 30)) &&
+             (!('lastGoogleSync' in data) || (data.lastGoogleSync is string && data.lastGoogleSync.size() <= 50)) &&
+             (!('imagenReferencia' in data) || (data.imagenReferencia is string && data.imagenReferencia.size() <= 50000)) &&
              (!('resources' in data) || (data.resources is list && data.resources.size() <= 50)) &&
              (!('etiquetas' in data) || (data.etiquetas is list && data.etiquetas.size() <= 20));
     }
