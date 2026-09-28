@@ -8,7 +8,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "./firebase";
-import { TaskItem, TaskResource, GlobalResource, UrlLibraryItem } from "../types";
+import { TaskItem, TaskResource, GlobalResource, UrlLibraryItem, SolicitudItem } from "../types";
 
 export interface UserProfileData {
   userId: string;
@@ -486,4 +486,127 @@ export async function batchSyncUrlLibraryToFirestore(
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
+
+// =========================================================
+// SOLICITUDES SERVICE (Centro de Solicitudes y Notificaciones)
+// =========================================================
+function sanitizeSolicitudForFirestore(sol: SolicitudItem, userId: string) {
+  const payload: Record<string, any> = {
+    userId,
+    solicitante: String(sol.solicitante || "Contacto").trim().slice(0, 150),
+    titulo: String(sol.titulo || sol.descripcion?.slice(0, 50) || "Solicitud").trim().slice(0, 300),
+    descripcion: String(sol.descripcion || "").trim().slice(0, 5000),
+    fechaIngreso: String(sol.fechaIngreso || new Date().toISOString()).slice(0, 50),
+    leida: Boolean(sol.leida),
+  };
+  if (sol.telefono) payload.telefono = String(sol.telefono).slice(0, 50);
+  if (sol.email) payload.email = String(sol.email).slice(0, 200);
+  if (sol.canal) payload.canal = String(sol.canal).slice(0, 50);
+  if (sol.prioridad) payload.prioridad = sol.prioridad;
+  if (sol.estado) payload.estado = sol.estado;
+  if (typeof sol.tareaIdAsociada === "number") payload.tareaIdAsociada = sol.tareaIdAsociada;
+  return payload;
+}
+
+export async function saveSolicitudToFirestore(
+  userId: string,
+  solicitud: SolicitudItem
+): Promise<void> {
+  const idStr = String(solicitud.id).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const path = `users/${userId}/solicitudes/${idStr}`;
+  const docRef = doc(db, "users", userId, "solicitudes", idStr);
+  const payload = sanitizeSolicitudForFirestore(solicitud, userId);
+
+  try {
+    await setDoc(docRef, payload, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteSolicitudFromFirestore(
+  userId: string,
+  solicitudId: string
+): Promise<void> {
+  const idStr = String(solicitudId).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const path = `users/${userId}/solicitudes/${idStr}`;
+  const docRef = doc(db, "users", userId, "solicitudes", idStr);
+  try {
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export async function loadSolicitudesFromFirestore(userId: string): Promise<SolicitudItem[]> {
+  const path = `users/${userId}/solicitudes`;
+  try {
+    const snapshot = await getDocs(collection(db, "users", userId, "solicitudes"));
+    const items: SolicitudItem[] = [];
+    snapshot.forEach((snap) => {
+      const data = snap.data();
+      items.push({
+        id: snap.id,
+        solicitante: data.solicitante || "Contacto",
+        telefono: data.telefono || undefined,
+        email: data.email || undefined,
+        titulo: data.titulo || "Solicitud",
+        descripcion: data.descripcion || "",
+        canal: data.canal || "WhatsApp",
+        prioridad: data.prioridad || "Alta",
+        estado: data.estado || "Nueva",
+        fechaIngreso: data.fechaIngreso || new Date().toISOString(),
+        leida: Boolean(data.leida),
+        tareaIdAsociada: typeof data.tareaIdAsociada === "number" ? data.tareaIdAsociada : undefined,
+      });
+    });
+    return items.sort((a, b) => b.fechaIngreso.localeCompare(a.fechaIngreso));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export function subscribeToSolicitudes(
+  userId: string,
+  onSolicitudesChange: (items: SolicitudItem[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const path = `users/${userId}/solicitudes`;
+  const unsubscribe = onSnapshot(
+    collection(db, "users", userId, "solicitudes"),
+    (snapshot) => {
+      const items: SolicitudItem[] = [];
+      snapshot.forEach((snap) => {
+        const data = snap.data();
+        items.push({
+          id: snap.id,
+          solicitante: data.solicitante || "Contacto",
+          telefono: data.telefono || undefined,
+          email: data.email || undefined,
+          titulo: data.titulo || "Solicitud",
+          descripcion: data.descripcion || "",
+          canal: data.canal || "WhatsApp",
+          prioridad: data.prioridad || "Alta",
+          estado: data.estado || "Nueva",
+          fechaIngreso: data.fechaIngreso || new Date().toISOString(),
+          leida: Boolean(data.leida),
+          tareaIdAsociada: typeof data.tareaIdAsociada === "number" ? data.tareaIdAsociada : undefined,
+        });
+      });
+      onSolicitudesChange(items.sort((a, b) => b.fechaIngreso.localeCompare(a.fechaIngreso)));
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (err: any) {
+        if (onError) onError(err);
+      }
+    }
+  );
+
+  return unsubscribe;
+}
+
+export const subscribeToFirestoreSolicitudes = subscribeToSolicitudes;
+
 

@@ -33,6 +33,7 @@ interface HeaderProps {
   urlCount?: number;
   onOpenNotifications?: () => void;
   isPushActive?: boolean;
+  unreadSolicitudesCount?: number;
 }
 
 export default function Header({
@@ -51,6 +52,7 @@ export default function Header({
   urlCount = 0,
   onOpenNotifications,
   isPushActive = false,
+  unreadSolicitudesCount = 0,
 }: HeaderProps) {
   const emailShort = syncStatus.email ? syncStatus.email.split("@")[0] : "Nube";
 
@@ -140,36 +142,52 @@ export default function Header({
             </span>
           </button>
 
-          {/* FCM Push Notifications Bell Button */}
+          {/* FCM Push Notifications & Centro de Solicitudes Bell Button */}
           {onOpenNotifications && (
             <button
               id="header-notifications-btn"
               onClick={onOpenNotifications}
               className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all shadow-2xs min-h-[44px] relative active:scale-95 ${
-                isPushActive
+                unreadSolicitudesCount > 0
+                  ? "border-rose-400 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-100 shadow-sm shadow-rose-500/20"
+                  : isPushActive
                   ? "border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200"
                   : "border-stone-200 dark:border-stone-700 bg-stone-100 hover:bg-stone-200/80 dark:bg-stone-800 dark:hover:bg-stone-700/80 text-stone-700 dark:text-stone-300"
               }`}
               title={
-                isPushActive
-                  ? "Notificaciones Push Activas (FCM). Clic para probar alerta o ver historial."
-                  : "Activar Notificaciones Push en el Celular (FCM) al completar tareas o recibir mensajes."
+                unreadSolicitudesCount > 0
+                  ? `${unreadSolicitudesCount} solicitud(es) nueva(s) en espera. Clic para ver Centro de Notificaciones.`
+                  : isPushActive
+                  ? "Notificaciones Push Activas (FCM). Clic para ver Centro de Notificaciones y Solicitudes."
+                  : "Centro de Notificaciones & Solicitudes (Push + Email)."
               }
             >
               <div className="relative">
-                {isPushActive ? (
+                {unreadSolicitudesCount > 0 ? (
+                  <BellRing size={16} className="text-rose-600 dark:text-rose-400 animate-bounce" />
+                ) : isPushActive ? (
                   <BellRing size={16} className="text-emerald-600 dark:text-emerald-400" />
                 ) : (
                   <Bell size={16} className="text-stone-500" />
                 )}
-                <span
-                  className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-stone-900 ${
-                    isPushActive ? "bg-emerald-500 animate-pulse" : "bg-amber-400"
-                  }`}
-                />
+                {unreadSolicitudesCount > 0 ? (
+                  <span className="absolute -top-2 -right-2 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[9px] font-black leading-tight ring-2 ring-white dark:ring-stone-900 animate-pulse">
+                    {unreadSolicitudesCount}
+                  </span>
+                ) : (
+                  <span
+                    className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-stone-900 ${
+                      isPushActive ? "bg-emerald-500 animate-pulse" : "bg-amber-400"
+                    }`}
+                  />
+                )}
               </div>
               <span className="hidden md:inline text-xs font-semibold">
-                {isPushActive ? "Push Activo" : "Alertas"}
+                {unreadSolicitudesCount > 0
+                  ? `Solicitudes (${unreadSolicitudesCount})`
+                  : isPushActive
+                  ? "Push Activo"
+                  : "Alertas"}
               </span>
             </button>
           )}

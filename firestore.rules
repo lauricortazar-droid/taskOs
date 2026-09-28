@@ -83,6 +83,40 @@ service cloud.firestore {
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100));
     }
 
+    function isValidSolicitud(data) {
+      return data.keys().hasAll(['userId', 'solicitante', 'titulo', 'descripcion', 'fechaIngreso', 'leida']) &&
+             data.keys().hasOnly(['userId', 'solicitante', 'telefono', 'email', 'titulo', 'descripcion', 'canal', 'prioridad', 'estado', 'fechaIngreso', 'leida', 'tareaIdAsociada', 'id', 'createdAt', 'updatedAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.solicitante is string && data.solicitante.size() > 0 && data.solicitante.size() <= 150 &&
+             data.titulo is string && data.titulo.size() > 0 && data.titulo.size() <= 300 &&
+             data.descripcion is string && data.descripcion.size() <= 5000 &&
+             data.fechaIngreso is string && data.fechaIngreso.size() <= 50 &&
+             data.leida is bool &&
+             (!('telefono' in data) || (data.telefono is string && data.telefono.size() <= 50)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+             (!('canal' in data) || (data.canal is string && data.canal.size() <= 50)) &&
+             (!('prioridad' in data) || (data.prioridad is string && data.prioridad in ['Alta', 'Media', 'Baja'])) &&
+             (!('estado' in data) || (data.estado is string && data.estado in ['Nueva', 'Atendida', 'ConvertidaEnTarea', 'Descartada'])) &&
+             (!('tareaIdAsociada' in data) || (data.tareaIdAsociada is number));
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'tipo', 'titulo', 'mensaje', 'creadaEn', 'leida']) &&
+             data.keys().hasOnly(['userId', 'tipo', 'titulo', 'mensaje', 'solicitante', 'telefono', 'solicitudId', 'tareaId', 'leida', 'creadaEn', 'emailEnviado', 'pushEnviado', 'id']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.tipo is string && data.tipo.size() <= 50 &&
+             data.titulo is string && data.titulo.size() <= 300 &&
+             data.mensaje is string && data.mensaje.size() <= 2000 &&
+             data.creadaEn is string && data.creadaEn.size() <= 50 &&
+             data.leida is bool &&
+             (!('solicitante' in data) || (data.solicitante is string && data.solicitante.size() <= 150)) &&
+             (!('telefono' in data) || (data.telefono is string && data.telefono.size() <= 50)) &&
+             (!('solicitudId' in data) || (data.solicitudId is string && data.solicitudId.size() <= 100)) &&
+             (!('tareaId' in data) || (data.tareaId is number)) &&
+             (!('emailEnviado' in data) || (data.emailEnviado is bool)) &&
+             (!('pushEnviado' in data) || (data.pushEnviado is bool));
+    }
+
     match /users/{userId} {
       allow get: if isOwner(userId);
 
@@ -112,6 +146,20 @@ service cloud.firestore {
         allow create: if isOwner(userId) && isValidId(userId) && isValidId(urlId) && isValidUrlLibraryItem(incoming());
         allow update: if isOwner(userId) && isValidId(userId) && isValidId(urlId) && isValidUrlLibraryItem(incoming()) && incoming().userId == existing().userId;
         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(urlId);
+      }
+
+      match /solicitudes/{solicitudId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(solicitudId) && isValidSolicitud(incoming());
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(solicitudId) && isValidSolicitud(incoming()) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(solicitudId);
+      }
+
+      match /notifications/{notifId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(notifId) && isValidNotification(incoming());
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(notifId) && isValidNotification(incoming()) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(notifId);
       }
     }
   }

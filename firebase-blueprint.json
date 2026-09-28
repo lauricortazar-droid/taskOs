@@ -73,6 +73,46 @@
         "updatedAt": { "type": "string", "format": "date-time", "description": "Updated timestamp" }
       },
       "required": ["userId"]
+    },
+    "Solicitud": {
+      "title": "Solicitud",
+      "description": "Incoming client and executive requests requiring attention, push alert, and email dispatch",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "User ID" },
+        "solicitante": { "type": "string", "maxLength": 150, "description": "Requester name" },
+        "telefono": { "type": "string", "maxLength": 50, "description": "Requester phone number" },
+        "email": { "type": "string", "maxLength": 200, "description": "Requester email address" },
+        "titulo": { "type": "string", "maxLength": 300, "description": "Request title or subject" },
+        "descripcion": { "type": "string", "maxLength": 5000, "description": "Full request details" },
+        "canal": { "type": "string", "maxLength": 50, "description": "Channel of origin (WhatsApp, Web, Input, etc)" },
+        "prioridad": { "type": "string", "enum": ["Alta", "Media", "Baja"], "description": "Priority level" },
+        "estado": { "type": "string", "enum": ["Nueva", "Atendida", "ConvertidaEnTarea", "Descartada"], "description": "Current status" },
+        "fechaIngreso": { "type": "string", "maxLength": 50, "description": "Creation timestamp" },
+        "leida": { "type": "boolean", "description": "Whether request has been read" },
+        "tareaIdAsociada": { "type": "number", "description": "Linked task ID if converted" }
+      },
+      "required": ["userId", "solicitante", "titulo", "descripcion", "fechaIngreso", "leida"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "Notification center alert record with push and email dispatch status",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "User ID" },
+        "tipo": { "type": "string", "maxLength": 50, "description": "Notification category" },
+        "titulo": { "type": "string", "maxLength": 300, "description": "Alert title" },
+        "mensaje": { "type": "string", "maxLength": 2000, "description": "Alert body" },
+        "solicitante": { "type": "string", "maxLength": 150, "description": "Requester name if applicable" },
+        "telefono": { "type": "string", "maxLength": 50, "description": "Requester phone if applicable" },
+        "solicitudId": { "type": "string", "maxLength": 100, "description": "Linked request ID" },
+        "tareaId": { "type": "number", "description": "Linked task ID" },
+        "leida": { "type": "boolean", "description": "Read status" },
+        "creadaEn": { "type": "string", "maxLength": 50, "description": "Creation ISO timestamp" },
+        "emailEnviado": { "type": "boolean", "description": "Email dispatch status" },
+        "pushEnviado": { "type": "boolean", "description": "Push notification dispatch status" }
+      },
+      "required": ["userId", "tipo", "titulo", "mensaje", "creadaEn", "leida"]
     }
   },
   "firestore": {
@@ -91,6 +131,14 @@
     "/users/{userId}/profile/info": {
       "schema": "UserProfile",
       "description": "User profile and configuration"
+    },
+    "/users/{userId}/solicitudes/{solicitudId}": {
+      "schema": "Solicitud",
+      "description": "Incoming client requests and solicitations"
+    },
+    "/users/{userId}/notifications/{notifId}": {
+      "schema": "NotificationItem",
+      "description": "User notification center alerts and history"
     }
   }
 }

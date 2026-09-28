@@ -301,7 +301,62 @@ export async function notifyTaskCompleted(task: {
   });
 }
 
-// 2. Trigger when a client message is received or queued
+// 2. Trigger when a new solicitud / request is received
+export async function notifyNewSolicitud(solicitud: {
+  id: string;
+  solicitante: string;
+  titulo: string;
+  descripcion: string;
+  prioridad?: string;
+  telefono?: string;
+}): Promise<boolean> {
+  playChime("notification");
+  const cleanSnippet = solicitud.descripcion.length > 90
+    ? `${solicitud.descripcion.slice(0, 87)}...`
+    : solicitud.descripcion;
+
+  const title = `🚨 Nueva Solicitud: ${solicitud.solicitante}`;
+  const body = `${solicitud.titulo} — ${cleanSnippet}`;
+
+  return sendPushNotification({
+    title,
+    body,
+    icon: "/icon-192.svg",
+    tag: `solicitud-${solicitud.id}`,
+    url: "/?openNotifications=true",
+    vibrate: [300, 100, 300, 100, 300],
+    data: {
+      solicitudId: solicitud.id,
+      solicitante: solicitud.solicitante,
+      telefono: solicitud.telefono,
+      action: "nueva_solicitud",
+    },
+  });
+}
+
+// 3. Trigger email notification for a solicitud
+export async function triggerSolicitudEmailAlert(
+  solicitudId: string,
+  toEmail?: string
+): Promise<{ success: boolean; mailtoUrl?: string; error?: string }> {
+  try {
+    const res = await fetch("/api/notifications/send-solicitud-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        solicitudId,
+        toEmail: toEmail || localStorage.getItem("task_os_user_email_v1") || "laurcortazar@gmail.com",
+      }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (err: any) {
+    console.warn("Error triggering email alert:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+// 4. Trigger when a client message is received or queued
 export async function notifyClientMessageReceived(
   clientName: string,
   messageText: string,

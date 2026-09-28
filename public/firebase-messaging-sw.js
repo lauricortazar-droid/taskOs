@@ -11,7 +11,7 @@ const firebaseConfig = {
   projectId: "gen-lang-client-0098696571",
   storageBucket: "gen-lang-client-0098696571.firebasestorage.app",
   messagingSenderId: "268081973600",
-  appId: "1:268081973600:web:b9969dba55c06418a2b605"
+  appId: "1:268081973600:web:992918dbc175a866a2b605"
 };
 
 // Initialize Firebase inside the Service Worker

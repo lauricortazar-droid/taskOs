@@ -38,6 +38,7 @@ import {
   getAccessToken,
   initAuth,
   testFirestoreConnection,
+  getFriendlyAuthErrorMessage,
 } from "../lib/firebase";
 import {
   fetchGoogleContacts,
@@ -101,6 +102,7 @@ export default function GoogleWorkspaceModal({
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copyDomainFeedback, setCopyDomainFeedback] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
   // Data states
@@ -179,7 +181,7 @@ export default function GoogleWorkspaceModal({
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMessage(err.message || "Error al autenticar con Google");
+      setErrorMessage(getFriendlyAuthErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -945,12 +947,99 @@ export default function GoogleWorkspaceModal({
           </div>
         )}
         {errorMessage && (
-          <div className="px-5 py-2.5 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={15} />
-              <span>{errorMessage}</span>
+          <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-xs">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle size={18} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <div className="font-bold text-sm text-rose-900 dark:text-rose-100">
+                    {errorMessage.includes("unauthorized-domain") || errorMessage.includes("Dominio no autorizado")
+                      ? "Dominio no autorizado en Firebase (auth/unauthorized-domain)"
+                      : "Aviso de Autenticación"}
+                  </div>
+                  <p className="text-xs text-rose-800 dark:text-rose-300 leading-relaxed">
+                    {errorMessage}
+                  </p>
+
+                  {(errorMessage.includes("unauthorized-domain") || errorMessage.includes("Dominio no autorizado")) && (
+                    <div className="mt-2.5 pt-2.5 border-t border-rose-200/80 dark:border-rose-800/60 space-y-2.5">
+                      <p className="font-semibold text-stone-800 dark:text-stone-200">
+                        Añade estos dominios a Firebase Console para autorizar el inicio de sesión:
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Domain 1: l.fgdll.org */}
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 shadow-2xs font-mono text-[11px] font-bold">
+                          <span>l.fgdll.org</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText("l.fgdll.org");
+                              setCopyDomainFeedback("¡Copiado: l.fgdll.org!");
+                              setTimeout(() => setCopyDomainFeedback(null), 3000);
+                            }}
+                            className="p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded text-stone-500 hover:text-stone-900"
+                            title="Copiar l.fgdll.org"
+                          >
+                            <Copy size={13} />
+                          </button>
+                        </div>
+
+                        {/* Domain 2: current window hostname if different */}
+                        {typeof window !== "undefined" && window.location.hostname !== "l.fgdll.org" && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 shadow-2xs font-mono text-[11px] font-bold">
+                            <span>{window.location.hostname}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(window.location.hostname);
+                                setCopyDomainFeedback(`¡Copiado: ${window.location.hostname}!`);
+                                setTimeout(() => setCopyDomainFeedback(null), 3000);
+                              }}
+                              className="p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded text-stone-500 hover:text-stone-900"
+                              title="Copiar dominio actual"
+                            >
+                              <Copy size={13} />
+                            </button>
+                          </div>
+                        )}
+
+                        <a
+                          href="https://console.firebase.google.com/project/gen-lang-client-0098696571/authentication/settings"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs shadow-2xs transition-colors"
+                        >
+                          <span>Abrir Firebase Console &gt; Settings</span>
+                          <ExternalLink size={12} />
+                        </a>
+                      </div>
+
+                      {copyDomainFeedback && (
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold animate-in fade-in">
+                          {copyDomainFeedback}
+                        </p>
+                      )}
+
+                      <div className="bg-white/80 dark:bg-stone-900/80 p-2.5 rounded-xl border border-stone-200 dark:border-stone-800 text-[11px] text-stone-700 dark:text-stone-300 space-y-1">
+                        <div className="font-semibold text-stone-900 dark:text-stone-100">Pasos para autorizar:</div>
+                        <ol className="list-decimal pl-4 space-y-0.5">
+                          <li>Abre Firebase Console en la pestaña <strong>Settings &gt; Authorized domains (Dominios autorizados)</strong>.</li>
+                          <li>Haz clic en <strong>Añadir dominio</strong> (Add domain).</li>
+                          <li>Pega <code className="font-mono font-bold">l.fgdll.org</code> (y el dominio de previsualización) y haz clic en <strong>Guardar</strong>.</li>
+                          <li>Vuelve aquí y haz clic en <strong>Iniciar sesión</strong>.</li>
+                        </ol>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 p-1 shrink-0"
+              >
+                ✕
+              </button>
             </div>
-            <button onClick={() => setErrorMessage(null)}>✕</button>
           </div>
         )}
 
@@ -2412,6 +2501,62 @@ export default function GoogleWorkspaceModal({
                 </div>
               </div>
 
+              {/* Authorized Domains for Firebase Authentication */}
+              <div className="p-4 rounded-2xl border border-stone-200 dark:border-stone-800 bg-stone-100/70 dark:bg-stone-800/40 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-amber-500" />
+                  <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">
+                    Dominios Autorizados para Firebase Auth (Google / Apple / SMS)
+                  </h4>
+                </div>
+                <p className="text-[11px] text-stone-600 dark:text-stone-300 leading-relaxed">
+                  Para evitar el error <code>auth/unauthorized-domain</code>, agrega tu dominio principal y el entorno de previsualización en Firebase Console:
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-mono text-[11px] font-bold">
+                    <span>l.fgdll.org</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText("l.fgdll.org");
+                        setCopyDomainFeedback("¡Copiado: l.fgdll.org!");
+                        setTimeout(() => setCopyDomainFeedback(null), 3000);
+                      }}
+                      className="p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded text-stone-500 hover:text-stone-900"
+                      title="Copiar l.fgdll.org"
+                    >
+                      <Copy size={13} />
+                    </button>
+                  </div>
+                  {typeof window !== "undefined" && window.location.hostname !== "l.fgdll.org" && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-mono text-[11px] font-bold">
+                      <span>{window.location.hostname}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(window.location.hostname);
+                          setCopyDomainFeedback(`¡Copiado: ${window.location.hostname}!`);
+                          setTimeout(() => setCopyDomainFeedback(null), 3000);
+                        }}
+                        className="p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded text-stone-500 hover:text-stone-900"
+                        title="Copiar dominio actual"
+                      >
+                        <Copy size={13} />
+                      </button>
+                    </div>
+                  )}
+                  <a
+                    href="https://console.firebase.google.com/project/gen-lang-client-0098696571/authentication/settings"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs"
+                  >
+                    <span>Abrir Configuración en Firebase Console</span>
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+              </div>
+
               {/* Apple App registration box */}
               <div className="p-4 rounded-2xl border border-stone-200 dark:border-stone-800 bg-stone-100/70 dark:bg-stone-800/40 space-y-2">
                 <div className="flex items-center gap-2">
@@ -2421,7 +2566,7 @@ export default function GoogleWorkspaceModal({
                   </h4>
                 </div>
                 <p className="text-[11px] text-stone-600 dark:text-stone-300 leading-relaxed">
-                  Para conectar un bundle de iOS a este proyecto Firebase (<code>gen-lang-client-0098696571</code>), registra el Bundle ID <code>org.fgdll.taskos</code> en Firebase Console, descarga <code>GoogleService-Info.plist</code> y añade Sign in with Apple en Authentication &gt; Sign-in method.
+                  Para conectar un bundle de iOS a este proyecto Firebase (<code>gen-lang-client-0098696571</code>), registra el Bundle ID <code>org.l.fgdll.taskos</code> (dominio <code>l.fgdll.org</code>) en Firebase Console, descarga <code>GoogleService-Info.plist</code> y añade Sign in with Apple en Authentication &gt; Sign-in method.
                 </p>
               </div>
             </div>

@@ -390,4 +390,35 @@ export interface EcosystemSyncPayload {
   updatedAt: string;
 }
 
+export interface SolicitudItem {
+  id: string;
+  solicitante: string;
+  telefono?: string;
+  email?: string;
+  titulo: string;
+  descripcion: string;
+  canal: "WhatsApp" | "ExecutiveInput" | "Web" | "Email" | "Sistema";
+  prioridad: "Alta" | "Media" | "Baja";
+  estado: "Nueva" | "Atendida" | "ConvertidaEnTarea" | "Descartada";
+  fechaIngreso: string;
+  leida: boolean;
+  tareaIdAsociada?: number;
+}
+
+export interface NotificationCenterItem {
+  id: string;
+  tipo: "solicitud_nueva" | "tarea_completada" | "mensaje_cliente" | "alerta_sistema";
+  titulo: string;
+  mensaje: string;
+  solicitante?: string;
+  telefono?: string;
+  solicitudId?: string;
+  tareaId?: number;
+  leida: boolean;
+  creadaEn: string;
+  emailEnviado?: boolean;
+  pushEnviado?: boolean;
+}
+
+
 

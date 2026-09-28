@@ -26,6 +26,8 @@ import {
   listenForegroundMessages,
   getNotificationPermission,
   registerMessagingServiceWorker,
+  notifyNewSolicitud,
+  triggerSolicitudEmailAlert,
 } from "./lib/fcmNotifications";
 import {
   Contact,
@@ -43,6 +45,7 @@ import {
   WorkspaceTab,
   PrintItem,
   LonasOrder,
+  SolicitudItem,
 } from "./types";
 import { routeExecutiveInput } from "./lib/executiveRouter";
 import {
@@ -57,6 +60,9 @@ import {
   batchSyncTasksToFirestore,
   batchSyncGlobalResourcesToFirestore,
   batchSyncUrlLibraryToFirestore,
+  saveSolicitudToFirestore,
+  deleteSolicitudFromFirestore,
+  subscribeToSolicitudes,
 } from "./lib/firestoreService";
 import { auth, initAuth } from "./lib/firebase";
 import { playChime } from "./utils/audio";
@@ -70,6 +76,47 @@ const STORAGE_KEY_CONTACTS = "task_os_pepe_contacts_v1";
 const STORAGE_KEY_TAGS = "task_os_pepe_tags_v1";
 const STORAGE_KEY_USER_EMAIL = "task_os_user_email_v1";
 const DEFAULT_USER_EMAIL = "laurcortazar@gmail.com";
+const STORAGE_KEY_SOLICITUDES = "task_os_solicitudes_v1";
+
+const INITIAL_SOLICITUDES: SolicitudItem[] = [
+  {
+    id: "sol-101",
+    solicitante: "Laura",
+    telefono: "+52 55 1234 5678",
+    email: "laura@universidad-fgdll.org",
+    titulo: "Revisar lista de diplomas y reconocimientos de graduación",
+    descripcion: "Por favor verificar los nombres de los 45 graduados antes de imprimir los reconocimientos oficiales.",
+    canal: "WhatsApp",
+    prioridad: "Alta",
+    estado: "Nueva",
+    fechaIngreso: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    leida: false,
+  },
+  {
+    id: "sol-102",
+    solicitante: "Líder Zona Tiburón",
+    telefono: "+52 55 9876 5432",
+    titulo: "Diseño y cotización de lona 3x2m para evento del sábado",
+    descripcion: "Requerimos lona en material front brillante con ojillos cada 50cm para el acceso principal.",
+    canal: "WhatsApp",
+    prioridad: "Alta",
+    estado: "Nueva",
+    fechaIngreso: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+    leida: false,
+  },
+  {
+    id: "sol-103",
+    solicitante: "Taller Impresión",
+    telefono: "+52 55 4567 8901",
+    titulo: "Validación de perfil de color en archivo Figma",
+    descripcion: "El archivo enviado está en RGB, requerimos confirmación si lo convertimos a CMYK Fogra39.",
+    canal: "Web",
+    prioridad: "Media",
+    estado: "Atendida",
+    fechaIngreso: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
+    leida: true,
+  },
+];
 
 const INITIAL_CONTACTS: Contact[] = [
   {
@@ -222,6 +269,19 @@ export default function App() {
       console.error("Failed to load saved tags", e);
     }
     return DEFAULT_TAGS;
+  });
+
+  const [solicitudes, setSolicitudes] = useState<SolicitudItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SOLICITUDES);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Failed to load saved solicitudes", e);
+    }
+    return INITIAL_SOLICITUDES;
   });
 
   const [isContactsModalOpen, setIsContactsModalOpen] = useState(false);
@@ -399,6 +459,15 @@ export default function App() {
     }
   }, [tags]);
 
+  // Save solicitudes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SOLICITUDES, JSON.stringify(solicitudes));
+    } catch (e) {
+      console.error("Failed to save solicitudes", e);
+    }
+  }, [solicitudes]);
+
   // Real-time Firestore sync when authenticated
   useEffect(() => {
     const unsubAuth = initAuth((user) => {
@@ -426,10 +495,19 @@ export default function App() {
         (err) => console.warn("Firestore url library sync warning:", err)
       );
 
+      const unsubSolicitudes = subscribeToSolicitudes(
+        user.uid,
+        (synced) => {
+          if (synced && synced.length > 0) setSolicitudes(synced);
+        },
+        (err) => console.warn("Firestore solicitudes sync warning:", err)
+      );
+
       return () => {
         unsubTasks();
         unsubGlobal();
         unsubUrlLib();
+        unsubSolicitudes();
       };
     });
 
@@ -441,6 +519,14 @@ export default function App() {
     if (typeof window !== "undefined") {
       setIsPushActive(getNotificationPermission() === "granted");
       registerMessagingServiceWorker();
+
+      // Check if URL has ?openNotifications=true from a push notification click
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("openNotifications") === "true") {
+        setIsNotificationsModalOpen(true);
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, "", cleanUrl);
+      }
 
       let cleanup = () => {};
       listenForegroundMessages((payload) => {
@@ -632,6 +718,184 @@ export default function App() {
     } catch (err: any) {
       console.error("Force sync failed:", err);
     }
+  };
+
+  // Solicitudes & Centro de Notificaciones Handlers
+  const handleConvertSolicitudToTask = (solicitud: SolicitudItem) => {
+    const nextId = tasks.length > 0 ? Math.max(...tasks.map((t) => t.id)) + 1 : 1;
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    // Determine domain intelligently
+    let taskDominio = "General";
+    const solLower = (solicitud.solicitante + " " + solicitud.titulo).toLowerCase();
+    if (solLower.includes("laura")) taskDominio = "Laura";
+    else if (solLower.includes("tiburón") || solLower.includes("lona") || solLower.includes("fgdll")) taskDominio = "FGDLL";
+    else if (solLower.includes("universidad") || solLower.includes("diploma")) taskDominio = "Universidad";
+    else if (solLower.includes("impresión") || solLower.includes("diseño")) taskDominio = "Diseño";
+
+    const newTask: TaskItem = {
+      id: nextId,
+      solicitante: solicitud.solicitante,
+      tarea: solicitud.titulo,
+      estado: "Pendiente",
+      fechaIngreso: todayStr,
+      dominio: taskDominio,
+      contacto: {
+        nombre: solicitud.solicitante,
+        telefono: solicitud.telefono,
+      },
+      notas: solicitud.descripcion,
+      etiquetas:
+        solicitud.prioridad === "Alta"
+          ? ["Urgente", "Solicitud"]
+          : ["Solicitud"],
+    };
+
+    const updatedTasks = [newTask, ...tasks];
+    setTasks(updatedTasks);
+    try {
+      localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(updatedTasks));
+    } catch (_) {}
+
+    if (auth.currentUser) {
+      saveTaskToFirestore(auth.currentUser.uid, newTask);
+    }
+
+    // Update solicitud status to ConvertidaEnTarea
+    const updatedSolicitudes = solicitudes.map((s) =>
+      s.id === solicitud.id
+        ? {
+            ...s,
+            estado: "ConvertidaEnTarea" as const,
+            leida: true,
+            tareaIdAsociada: nextId,
+          }
+        : s
+    );
+    setSolicitudes(updatedSolicitudes);
+    try {
+      localStorage.setItem(STORAGE_KEY_SOLICITUDES, JSON.stringify(updatedSolicitudes));
+    } catch (_) {}
+
+    if (auth.currentUser) {
+      const targetSol = updatedSolicitudes.find((s) => s.id === solicitud.id);
+      if (targetSol) saveSolicitudToFirestore(auth.currentUser.uid, targetSol);
+    }
+
+    // Update backend store
+    fetch(`/api/solicitudes/${solicitud.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        estado: "ConvertidaEnTarea",
+        leida: true,
+        tareaIdAsociada: nextId,
+        targetUserEmail: syncEmail,
+      }),
+    }).catch(() => {});
+
+    setLastActionSummary(
+      `✅ Solicitud de ${solicitud.solicitante} convertida en Tarea #${nextId} en el Ledger.`
+    );
+    playChime("success");
+  };
+
+  const handleUpdateSolicitud = (id: string, updates: Partial<SolicitudItem>) => {
+    const updated = solicitudes.map((s) => (s.id === id ? { ...s, ...updates } : s));
+    setSolicitudes(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY_SOLICITUDES, JSON.stringify(updated));
+    } catch (_) {}
+
+    const target = updated.find((s) => s.id === id);
+    if (target && auth.currentUser) {
+      saveSolicitudToFirestore(auth.currentUser.uid, target);
+    }
+
+    fetch(`/api/solicitudes/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...updates, targetUserEmail: syncEmail }),
+    }).catch(() => {});
+  };
+
+  const handleDeleteSolicitud = (id: string) => {
+    const target = solicitudes.find((s) => s.id === id);
+    const updated = solicitudes.filter((s) => s.id !== id);
+    setSolicitudes(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY_SOLICITUDES, JSON.stringify(updated));
+    } catch (_) {}
+
+    if (auth.currentUser) {
+      deleteSolicitudFromFirestore(auth.currentUser.uid, id);
+    }
+
+    if (target) {
+      setUndoAction({
+        id: `undo-sol-${Date.now()}`,
+        message: `Solicitud de "${target.solicitante}" eliminada.`,
+        onUndo: () => {
+          setSolicitudes((prev) => [target, ...prev]);
+          if (auth.currentUser) {
+            saveSolicitudToFirestore(auth.currentUser.uid, target);
+          }
+          setLastActionSummary("Acción deshecha: Solicitud restaurada.");
+          playChime("tick");
+        },
+      });
+    }
+  };
+
+  const handleCreateSolicitud = async (
+    newSolData: Omit<SolicitudItem, "id" | "fechaIngreso">
+  ) => {
+    const newId = `sol-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const newSolicitud: SolicitudItem = {
+      ...newSolData,
+      id: newId,
+      fechaIngreso: new Date().toISOString(),
+    };
+
+    const updated = [newSolicitud, ...solicitudes];
+    setSolicitudes(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY_SOLICITUDES, JSON.stringify(updated));
+    } catch (_) {}
+
+    if (auth.currentUser) {
+      saveSolicitudToFirestore(auth.currentUser.uid, newSolicitud);
+    }
+
+    // Call server to persist and prepare push & email record
+    try {
+      fetch("/api/solicitudes/crear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...newSolicitud,
+          targetUserEmail: syncEmail,
+        }),
+      }).catch(() => {});
+    } catch (_) {}
+
+    // Dispatch Native Push Notification (Service Worker banner + sound + vibration)
+    await notifyNewSolicitud({
+      id: newSolicitud.id,
+      solicitante: newSolicitud.solicitante,
+      titulo: newSolicitud.titulo,
+      descripcion: newSolicitud.descripcion,
+      prioridad: newSolicitud.prioridad,
+      telefono: newSolicitud.telefono,
+    });
+
+    // Dispatch Email Alert (server + mailto)
+    await triggerSolicitudEmailAlert(newSolicitud.id, syncEmail);
+
+    setLastActionSummary(
+      `🚨 Nueva solicitud de ${newSolicitud.solicitante} recibida. Notificación Push y Alerta Email despachadas.`
+    );
+    playChime("notification");
   };
 
   const handleImportBackup = async (data: TaskOSExportData) => {
@@ -1450,6 +1714,9 @@ export default function App() {
         onOpenExportImport={() => setIsExportImportOpen(true)}
         onOpenUrlLibrary={() => setCurrentWorkspace("urls")}
         urlCount={urlLibrary.length}
+        onOpenNotifications={() => setIsNotificationsModalOpen(true)}
+        isPushActive={isPushActive}
+        unreadSolicitudesCount={solicitudes.filter((s) => !s.leida || s.estado === "Nueva").length}
       />
 
       {/* Ecosystem Navigation Bar (🔥 • 💻 • 🤑 • 🔗 • 🖨️ • ⏱️) */}
@@ -1887,6 +2154,18 @@ export default function App() {
         onDismiss={() => setUndoAction(null)}
       />
 
+      {/* Centro de Notificaciones & Solicitudes Modal (Push + Email) */}
+      <NotificationsModal
+        isOpen={isNotificationsModalOpen}
+        onClose={() => setIsNotificationsModalOpen(false)}
+        userEmail={syncEmail}
+        solicitudes={solicitudes}
+        onConvertSolicitudToTask={handleConvertSolicitudToTask}
+        onUpdateSolicitud={handleUpdateSolicitud}
+        onDeleteSolicitud={handleDeleteSolicitud}
+        onCreateSolicitud={handleCreateSolicitud}
+      />
+
       {/* Mobile-First Bottom Navigation Bar */}
       <MobileNavBar
         activeCount={tasks.filter((t) => t.estado !== "Completado").length}
@@ -1915,6 +2194,8 @@ export default function App() {
         }}
         onOpenSync={() => setIsSyncModalOpen(true)}
         onOpenContacts={() => setIsContactsModalOpen(true)}
+        onOpenNotifications={() => setIsNotificationsModalOpen(true)}
+        unreadSolicitudesCount={solicitudes.filter((s) => !s.leida || s.estado === "Nueva").length}
         onScrollToLedger={() => {
           if (currentWorkspace !== "task-os") setCurrentWorkspace("task-os");
           setTimeout(() => {

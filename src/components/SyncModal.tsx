@@ -79,6 +79,7 @@ export default function SyncModal({
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authSuccessMsg, setAuthSuccessMsg] = useState<string | null>(null);
+  const [copyDomainFeedback, setCopyDomainFeedback] = useState<string | null>(null);
 
   // Pairing state
   const [emailInput, setEmailInput] = useState(syncStatus.email || "laurcortazar@gmail.com");
@@ -424,10 +425,68 @@ export default function SyncModal({
           )}
 
           {authError && (
-            <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2 animate-in fade-in">
-              <AlertCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <span className="font-semibold">{authError}</span>
+            <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2.5 animate-in fade-in">
+              <AlertCircle size={17} className="text-rose-500 shrink-0 mt-0.5" />
+              <div className="space-y-2 flex-1">
+                <span className="font-semibold block">{authError}</span>
+
+                {(authError.includes("unauthorized-domain") || authError.includes("Dominio no autorizado")) && (
+                  <div className="mt-2 pt-2 border-t border-rose-200/80 dark:border-rose-800/60 space-y-2 text-[11px]">
+                    <p className="font-semibold text-stone-800 dark:text-stone-200">
+                      Dominios a registrar en Firebase Console:
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <div className="flex items-center gap-1 px-2 py-1 rounded bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-mono font-bold">
+                        <span>l.fgdll.org</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText("l.fgdll.org");
+                            setCopyDomainFeedback("¡Copiado: l.fgdll.org!");
+                            setTimeout(() => setCopyDomainFeedback(null), 3000);
+                          }}
+                          className="p-0.5 hover:text-stone-900 dark:hover:text-stone-100"
+                          title="Copiar l.fgdll.org"
+                        >
+                          <Copy size={12} />
+                        </button>
+                      </div>
+
+                      {typeof window !== "undefined" && window.location.hostname !== "l.fgdll.org" && (
+                        <div className="flex items-center gap-1 px-2 py-1 rounded bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-mono font-bold">
+                          <span>{window.location.hostname}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(window.location.hostname);
+                              setCopyDomainFeedback(`¡Copiado: ${window.location.hostname}!`);
+                              setTimeout(() => setCopyDomainFeedback(null), 3000);
+                            }}
+                            className="p-0.5 hover:text-stone-900 dark:hover:text-stone-100"
+                            title="Copiar dominio actual"
+                          >
+                            <Copy size={12} />
+                          </button>
+                        </div>
+                      )}
+
+                      <a
+                        href="https://console.firebase.google.com/project/gen-lang-client-0098696571/authentication/settings"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold"
+                      >
+                        <span>Ir a Firebase Settings</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    </div>
+                    {copyDomainFeedback && (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold block">
+                        {copyDomainFeedback}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -589,7 +648,7 @@ export default function SyncModal({
                           <input
                             type="email"
                             required
-                            placeholder="usuario@fgdll.org"
+                            placeholder="usuario@l.fgdll.org"
                             value={authEmail}
                             onChange={(e) => setAuthEmail(e.target.value)}
                             className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-xs text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -888,9 +947,9 @@ export default function SyncModal({
                       <br />
                       Usa el ID de paquete recomendado:{" "}
                       <code className="px-1.5 py-0.5 rounded bg-stone-200 dark:bg-stone-700 font-mono font-bold">
-                        org.fgdll.taskos
+                        org.l.fgdll.taskos
                       </code>
-                      .
+                      {" "}(dominio asociado: <code className="px-1 py-0.5 rounded bg-stone-100 dark:bg-stone-800 font-mono font-semibold">l.fgdll.org</code>).
                     </div>
                   </li>
 

@@ -13,6 +13,8 @@ interface MobileNavBarProps {
   onOpenSync: () => void;
   onOpenContacts: () => void;
   onScrollToLedger: () => void;
+  onOpenNotifications?: () => void;
+  unreadSolicitudesCount?: number;
 }
 
 export default function MobileNavBar({
@@ -27,6 +29,8 @@ export default function MobileNavBar({
   onOpenSync,
   onOpenContacts,
   onScrollToLedger,
+  onOpenNotifications,
+  unreadSolicitudesCount = 0,
 }: MobileNavBarProps) {
   return (
     <nav
@@ -140,6 +144,24 @@ export default function MobileNavBar({
         >
           <span className="text-xl leading-none">⏱️</span>
         </button>
+
+        {/* Centro de Solicitudes & Notificaciones: 🔔 */}
+        {onOpenNotifications && (
+          <button
+            type="button"
+            onClick={onOpenNotifications}
+            className="flex items-center justify-center py-2 px-2.5 rounded-2xl min-h-[46px] min-w-[46px] relative transition-all active:scale-95 text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800"
+            title="Centro de Solicitudes & Notificaciones: 🔔"
+            aria-label="Centro de Solicitudes & Notificaciones: 🔔"
+          >
+            <span className="text-xl leading-none">🔔</span>
+            {unreadSolicitudesCount > 0 && (
+              <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[9px] font-black leading-tight shadow-xs animate-pulse">
+                {unreadSolicitudesCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
     </nav>
   );

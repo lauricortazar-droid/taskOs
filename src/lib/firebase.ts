@@ -318,6 +318,10 @@ export function getFriendlyAuthErrorMessage(error: any): string {
       return "El código SMS ha expirado. Solicita un nuevo código.";
     case "auth/captcha-check-failed":
       return "La verificación de reCAPTCHA falló. Intenta de nuevo.";
+    case "auth/unauthorized-domain": {
+      const currentHost = typeof window !== "undefined" ? window.location.hostname : "el dominio actual";
+      return `Dominio no autorizado en Firebase (${currentHost}). Ve a Firebase Console > Authentication > Settings > Authorized domains y añade "l.fgdll.org" y "${currentHost}".`;
+    }
     default:
       return error.message || "Error al autenticar con Firebase.";
   }

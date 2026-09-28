@@ -363,6 +363,86 @@ app.post("/api/sync/ecosystem", (req: Request, res: Response) => {
 // ==========================================
 const FCM_TOKENS_FILE = path.join(DATA_DIR, "fcm_tokens.json");
 const NOTIFICATIONS_HISTORY_FILE = path.join(DATA_DIR, "notifications_history.json");
+const SOLICITUDES_FILE = path.join(DATA_DIR, "solicitudes.json");
+
+interface ServerSolicitudItem {
+  id: string;
+  solicitante: string;
+  telefono?: string;
+  email?: string;
+  titulo: string;
+  descripcion: string;
+  canal: "WhatsApp" | "ExecutiveInput" | "Web" | "Email" | "Sistema";
+  prioridad: "Alta" | "Media" | "Baja";
+  estado: "Nueva" | "Atendida" | "ConvertidaEnTarea" | "Descartada";
+  fechaIngreso: string;
+  leida: boolean;
+  tareaIdAsociada?: number;
+}
+
+const INITIAL_SOLICITUDES: ServerSolicitudItem[] = [
+  {
+    id: "sol-101",
+    solicitante: "Laura",
+    telefono: "+52 55 1234 5678",
+    email: "laura@universidad-fgdll.org",
+    titulo: "Revisar lista de diplomas y reconocimientos de graduación",
+    descripcion: "Por favor verificar los nombres de los 45 graduados antes de imprimir los reconocimientos oficiales.",
+    canal: "WhatsApp",
+    prioridad: "Alta",
+    estado: "Nueva",
+    fechaIngreso: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    leida: false,
+  },
+  {
+    id: "sol-102",
+    solicitante: "Líder Zona Tiburón",
+    telefono: "+52 55 9876 5432",
+    titulo: "Diseño y cotización de lona 3x2m para evento del sábado",
+    descripcion: "Requerimos lona en material front brillante con ojillos cada 50cm para el acceso principal.",
+    canal: "WhatsApp",
+    prioridad: "Alta",
+    estado: "Nueva",
+    fechaIngreso: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+    leida: false,
+  },
+  {
+    id: "sol-103",
+    solicitante: "Taller Impresión",
+    telefono: "+52 55 4567 8901",
+    titulo: "Validación de perfil de color en archivo Figma",
+    descripcion: "El archivo enviado está en RGB, requerimos confirmación si lo convertimos a CMYK Fogra39.",
+    canal: "Web",
+    prioridad: "Media",
+    estado: "Atendida",
+    fechaIngreso: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
+    leida: true,
+  },
+];
+
+function getSolicitudesStore(): Record<string, ServerSolicitudItem[]> {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(SOLICITUDES_FILE)) {
+      const initial: Record<string, ServerSolicitudItem[]> = {
+        default: INITIAL_SOLICITUDES,
+      };
+      fs.writeFileSync(SOLICITUDES_FILE, JSON.stringify(initial, null, 2), "utf8");
+      return initial;
+    }
+    const data = fs.readFileSync(SOLICITUDES_FILE, "utf8");
+    return JSON.parse(data || "{}");
+  } catch (_) {
+    return { default: INITIAL_SOLICITUDES };
+  }
+}
+
+function saveSolicitudesStore(store: Record<string, ServerSolicitudItem[]>) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(SOLICITUDES_FILE, JSON.stringify(store, null, 2), "utf8");
+  } catch (_) {}
+}
 
 interface FCMTokenRecord {
   token: string;
@@ -521,6 +601,194 @@ app.get("/api/notifications/status", (req: Request, res: Response) => {
       success: true,
       registeredDevices: userTokens.length,
       devices: userTokens.map((t) => ({ device: t.device, updatedAt: t.updatedAt })),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// SOLICITUDES & NOTIFICATION CENTER API
+// ==========================================
+
+// 1. Get all solicitudes
+app.get("/api/solicitudes", (req: Request, res: Response) => {
+  try {
+    const email = (req.query.email ? String(req.query.email) : "default").trim().toLowerCase();
+    const store = getSolicitudesStore();
+    const list = store[email] || store["default"] || [];
+    return res.json({ success: true, solicitudes: list });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Create new solicitud + trigger push & email notification
+app.post("/api/solicitudes/crear", (req: Request, res: Response) => {
+  try {
+    const {
+      solicitante = "Nuevo Contacto",
+      telefono,
+      email: contactEmail,
+      titulo,
+      descripcion = "",
+      canal = "WhatsApp",
+      prioridad = "Alta",
+      targetUserEmail = "laurcortazar@gmail.com",
+    } = req.body;
+
+    if (!titulo && !descripcion) {
+      return res.status(400).json({ error: "Título o descripción es requerido" });
+    }
+
+    const cleanUserEmail = (targetUserEmail || "laurcortazar@gmail.com").trim().toLowerCase();
+    const store = getSolicitudesStore();
+    const userSolicitudes = store[cleanUserEmail] || store["default"] || [...INITIAL_SOLICITUDES];
+
+    const newSolicitud: ServerSolicitudItem = {
+      id: `sol-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      solicitante: solicitante.trim(),
+      telefono: telefono ? telefono.trim() : undefined,
+      email: contactEmail ? contactEmail.trim() : undefined,
+      titulo: (titulo || descripcion.slice(0, 60)).trim(),
+      descripcion: descripcion.trim(),
+      canal,
+      prioridad,
+      estado: "Nueva",
+      fechaIngreso: new Date().toISOString(),
+      leida: false,
+    };
+
+    userSolicitudes.unshift(newSolicitud);
+    store[cleanUserEmail] = userSolicitudes;
+    saveSolicitudesStore(store);
+
+    // 1. Register Push Notification in notification history
+    const notifRecord: NotificationHistoryRecord = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: `🚨 Nueva Solicitud: ${newSolicitud.solicitante}`,
+      body: `${newSolicitud.titulo} — ${newSolicitud.descripcion.slice(0, 100)}`,
+      icon: "/icon-192.svg",
+      tag: "solicitud_nueva",
+      url: "/",
+      email: cleanUserEmail,
+      type: "solicitud_nueva",
+      data: { solicitudId: newSolicitud.id, solicitante: newSolicitud.solicitante, telefono: newSolicitud.telefono },
+      timestamp: new Date().toISOString(),
+      delivered: true,
+    };
+
+    const notifHistory = getNotificationsHistory();
+    notifHistory.unshift(notifRecord);
+    saveNotificationsHistory(notifHistory);
+
+    // 2. Prepare Rich Email Notification
+    const dateFormatted = new Date().toLocaleString("es-ES", {
+      dateStyle: "full",
+      timeStyle: "short",
+    });
+
+    const emailSubject = `[Task-OS] 🚨 Nueva Solicitud de ${newSolicitud.solicitante}: ${newSolicitud.titulo}`;
+    const emailBodyText = `Hola Pepe,\n\nHas recibido una nueva solicitud en Task-OS:\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `👤 Solicitante: ${newSolicitud.solicitante}\n` +
+      (newSolicitud.telefono ? `📞 Teléfono: ${newSolicitud.telefono}\n` : "") +
+      `📌 Asunto: ${newSolicitud.titulo}\n` +
+      `⚡ Prioridad: ${newSolicitud.prioridad}\n` +
+      `📡 Canal de Ingreso: ${newSolicitud.canal}\n` +
+      `🕒 Fecha: ${dateFormatted}\n\n` +
+      `📝 Detalle de la Solicitud:\n${newSolicitud.descripcion}\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `Abre Task-OS para atenderla o convertirla en tarea del Ledger.\n`;
+
+    console.log(`[Solicitud Creada & Notificación Despachada] ${newSolicitud.solicitante} -> ${newSolicitud.titulo}`);
+
+    return res.json({
+      success: true,
+      solicitud: newSolicitud,
+      pushDelivered: true,
+      emailPrepared: {
+        to: cleanUserEmail,
+        subject: emailSubject,
+        bodyText: emailBodyText,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Update solicitud (mark as read, change status, link task)
+app.put("/api/solicitudes/:id", (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { estado, leida, tareaIdAsociada, targetUserEmail } = req.body;
+    const email = (targetUserEmail || "laurcortazar@gmail.com").trim().toLowerCase();
+    const store = getSolicitudesStore();
+    const list = store[email] || store["default"] || [];
+
+    const idx = list.findIndex((s) => s.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Solicitud no encontrada" });
+    }
+
+    if (estado !== undefined) list[idx].estado = estado;
+    if (leida !== undefined) list[idx].leida = leida;
+    if (tareaIdAsociada !== undefined) list[idx].tareaIdAsociada = tareaIdAsociada;
+
+    store[email] = list;
+    saveSolicitudesStore(store);
+
+    return res.json({ success: true, solicitud: list[idx] });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. Send email notification for a solicitud
+app.post("/api/notifications/send-solicitud-email", (req: Request, res: Response) => {
+  try {
+    const { solicitudId, toEmail = "laurcortazar@gmail.com", customNotes } = req.body;
+    const store = getSolicitudesStore();
+    const all = Object.values(store).flat();
+    const solicitud = all.find((s) => s.id === solicitudId);
+
+    const cleanTo = (toEmail || "laurcortazar@gmail.com").trim();
+    const solicitante = solicitud?.solicitante || "Solicitante";
+    const titulo = solicitud?.titulo || "Solicitud de Tarea";
+    const descripcion = solicitud?.descripcion || "";
+
+    const dateFormatted = new Date().toLocaleString("es-ES", {
+      dateStyle: "full",
+      timeStyle: "short",
+    });
+
+    const subject = `[Task-OS Alerta] Nueva Solicitud: ${solicitante} — ${titulo}`;
+    let bodyText = `Hola,\n\nSe ha recibido y registrado una nueva solicitud en Task-OS:\n\n` +
+      `• Solicitante: ${solicitante}\n` +
+      (solicitud?.telefono ? `• Teléfono WhatsApp: ${solicitud.telefono}\n` : "") +
+      `• Título: ${titulo}\n` +
+      `• Prioridad: ${solicitud?.prioridad || "Alta"}\n` +
+      `• Canal: ${solicitud?.canal || "WhatsApp"}\n` +
+      `• Fecha: ${dateFormatted}\n\n` +
+      `Descripción:\n${descripcion}\n\n`;
+
+    if (customNotes) {
+      bodyText += `Notas ejecutivas adicionales:\n${customNotes}\n\n`;
+    }
+
+    bodyText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `Notificación automática de Task-OS • Sistema Operativo Personal`;
+
+    const mailtoUrl = `mailto:${encodeURIComponent(cleanTo)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+
+    return res.json({
+      success: true,
+      email: cleanTo,
+      subject,
+      bodyText,
+      mailtoUrl,
+      timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -1053,7 +1321,7 @@ function processLocally(
     if (!preassignedCategory) domain = "Universidad";
   } else if (lower.includes("proveedor") || lower.includes("lona") || lower.includes("impresión")) {
     if (!preassignedCategory) domain = "Diseño";
-  } else if (lower.includes("fgdll.org") || lower.includes("panel") || lower.includes("github")) {
+  } else if (lower.includes("l.fgdll.org") || lower.includes("fgdll.org") || lower.includes("panel") || lower.includes("github")) {
     if (!preassignedCategory) domain = "Tecnología";
   }
 

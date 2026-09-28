@@ -137,6 +137,12 @@ const KNOWN_SERVICES: Record<string, { title: string; categoria: string; keyword
     keywords: ["suno", "musica", "audio", "canciones", "ia", "generador"],
     descripcion: "Plataforma de generación musical con inteligencia artificial para crear pistas completas y canciones.",
   },
+  "l.fgdll.org": {
+    title: "Task-OS • Sistema Operativo Ejecutivo (l.fgdll.org)",
+    categoria: "Productividad & Trabajo",
+    keywords: ["task-os", "l.fgdll.org", "panel", "ejecutivo", "tareas", "fgdll"],
+    descripcion: "Portal institucional y sistema operativo de tareas desplegado en l.fgdll.org",
+  },
   "chatgpt.com": {
     title: "ChatGPT • Asistente y Modelos de Lenguaje",
     categoria: "Inteligencia Artificial",
